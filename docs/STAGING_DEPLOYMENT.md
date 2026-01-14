@@ -212,6 +212,7 @@ curl http://localhost:3000/api/health
 | `.env.db.staging` | Database credentials (DB_PASSWORD, REDIS_PASSWORD) |
 | `.env.api.staging` | API configuration (auth, CORS, app settings) |
 | `.env.ui.staging` | UI configuration (URLs, cookies, security) |
+| `.env.nginx.staging` | Nginx configuration (NGINX_HOST) - only for SSL mode |
 
 ### Database Configuration (.env.db.staging)
 
@@ -309,7 +310,10 @@ ui:
 # During startup
 make staging-up-seed
 
-# Or manually after startup
+# Or seed to running database
+make staging-seed
+
+# Or manually via docker compose
 make db-seed
 ```
 
@@ -330,13 +334,13 @@ For staging environments that require HTTPS (e.g., testing OAuth, secure cookies
 
 ```bash
 # 1. Generate self-signed certificate (for testing only)
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout nginx/ssl/key.pem \
-  -out nginx/ssl/cert.pem \
-  -subj "/CN=localhost"
+make init-ssl
 
 # 2. Start staging with SSL
 make staging-up-ssl
+
+# Or start with SSL + test data
+make staging-up-ssl-seed
 
 # 3. Access via HTTPS
 open https://localhost
@@ -346,6 +350,11 @@ open https://localhost
 ### Option 2: With Let's Encrypt Certificate
 
 ```bash
+# Show setup instructions
+make init-ssl-letsencrypt
+
+# Or manually:
+
 # 1. Obtain certificate (run on server with domain pointing to it)
 sudo certbot certonly --standalone -d staging.yourdomain.com
 
@@ -353,8 +362,10 @@ sudo certbot certonly --standalone -d staging.yourdomain.com
 sudo cp /etc/letsencrypt/live/staging.yourdomain.com/fullchain.pem nginx/ssl/cert.pem
 sudo cp /etc/letsencrypt/live/staging.yourdomain.com/privkey.pem nginx/ssl/key.pem
 
-# 3. Update nginx config with your domain
-sed -i 's/your-domain.com/staging.yourdomain.com/g' nginx/nginx.conf
+# 3. Configure nginx hostname
+cp environments/.env.nginx.staging.example .env.nginx.staging
+# Edit .env.nginx.staging and set:
+# NGINX_HOST=staging.yourdomain.com
 
 # 4. Start staging with SSL
 make staging-up-ssl
@@ -491,9 +502,13 @@ make staging-up
 
 ```bash
 # Start
-make staging-up          # Without test data
-make staging-up-seed     # With test data
-make staging-up-ssl      # With Nginx/SSL (requires certificates)
+make staging-up              # Without test data (HTTP)
+make staging-up-seed         # With test data (HTTP)
+make staging-up-ssl          # With Nginx/SSL (HTTPS)
+make staging-up-ssl-seed     # With Nginx/SSL + test data (HTTPS)
+
+# Seed data to running database
+make staging-seed
 
 # Stop
 make staging-down
@@ -816,12 +831,13 @@ make staging-restart
 
 ### For HTTPS/SSL Mode (Optional)
 
-- [ ] SSL certificates placed in `nginx/ssl/` (cert.pem, key.pem)
-- [ ] Domain updated in `nginx/nginx.conf`
+- [ ] SSL certificates generated (`make init-ssl` for self-signed, or Let's Encrypt for production)
+- [ ] `.env.nginx.staging` created (`cp environments/.env.nginx.staging.example .env.nginx.staging`)
+- [ ] `NGINX_HOST` set in `.env.nginx.staging` (e.g., localhost or your domain)
 - [ ] `CORS_ALLOWED_ORIGINS` updated for HTTPS
 - [ ] `NEXT_PUBLIC_APP_URL` updated for HTTPS
 - [ ] `SECURE_COOKIES=true` in `.env.ui.staging`
-- [ ] Start with `make staging-up-ssl`
+- [ ] Start with `make staging-up-ssl` or `make staging-up-ssl-seed`
 
 ### For Remote Server
 

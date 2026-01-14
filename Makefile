@@ -195,12 +195,8 @@ staging-up-seed: check-staging ## Start staging with test data
 staging-up-ssl: check-staging check-nginx-staging check-ssl ## Start staging with Nginx/SSL
 	@echo "Starting staging environment with Nginx/SSL (version: $(VERSION))..."
 	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging pull
-	@echo "Starting base services..."
-	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 3
-	@echo "Starting nginx..."
-	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d nginx
+	@echo "Starting all services with SSL profile..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d
 	@echo ""
 	@echo "Services starting... UI: https://localhost"
 	@echo "View logs: make staging-logs"
@@ -208,12 +204,8 @@ staging-up-ssl: check-staging check-nginx-staging check-ssl ## Start staging wit
 staging-up-ssl-seed: check-staging check-nginx-staging check-ssl ## Start staging with Nginx/SSL and test data
 	@echo "Starting staging environment with Nginx/SSL and test data (version: $(VERSION))..."
 	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging pull
-	@echo "Starting base services with seed..."
-	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile seed up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 3
-	@echo "Starting nginx..."
-	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d nginx
+	@echo "Starting all services with SSL and seed profiles..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl --profile seed up -d
 	@echo ""
 	@echo "Test credentials: admin@rediver.io / Password123"
 	@echo "UI: https://localhost"
