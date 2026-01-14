@@ -22,6 +22,9 @@
 # With test data:
 #   docker compose -f docker-compose.staging.yml --profile seed up -d
 #
+# Debug mode (expose DB/Redis ports):
+#   docker compose -f docker-compose.staging.yml --profile debug up -d
+#
 # Commands:
 #   Start:      docker compose -f docker-compose.staging.yml up -d
 #   Logs:       docker compose -f docker-compose.staging.yml logs -f
@@ -30,12 +33,17 @@
 #   Pull new:   docker compose -f docker-compose.staging.yml pull
 #
 # Services:
-#   - postgres:  PostgreSQL 17 database (port 5432)
-#   - redis:     Redis 7 cache (port 6379)
+#   - postgres:  PostgreSQL 17 database (internal only)
+#   - redis:     Redis 7 cache (internal only)
 #   - migrate:   Runs migrations (exits after completion)
 #   - seed:      Seeds test data (--profile seed)
 #   - api:       Backend API (internal only)
 #   - ui:        Frontend UI (port 3000)
+#
+# Security Notes:
+#   - Database and Redis are NOT exposed by default
+#   - Use --profile debug to expose ports for debugging
+#   - For production-like security, don't use debug profile
 # =============================================================================
 
 services:
@@ -47,15 +55,16 @@ services:
     container_name: rediver-postgres
     restart: unless-stopped
     env_file:
-      - .env.api.staging
+      - .env.db.staging
     environment:
       POSTGRES_USER: ${DB_USER:-rediver}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
       POSTGRES_DB: ${DB_NAME:-rediver}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    expose:
+      - "5432"
+    # No external ports by default - use --profile debug to expose
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}"]
       interval: 5s
@@ -64,6 +73,31 @@ services:
       start_period: 10s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Debug (exposes port - use with --profile debug)
+  # ---------------------------------------------------------------------------
+  postgres-debug:
+    extends:
+      service: postgres
+    container_name: rediver-postgres-debug
+    ports:
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    profiles:
+      - debug
 
   # ---------------------------------------------------------------------------
   # Redis Cache
@@ -73,12 +107,13 @@ services:
     container_name: rediver-redis
     restart: unless-stopped
     env_file:
-      - .env.api.staging
+      - .env.db.staging
     command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+    expose:
+      - "6379"
+    # No external ports by default - use --profile debug to expose
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -87,17 +122,42 @@ services:
       start_period: 5s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Redis Debug (exposes port - use with --profile debug)
+  # ---------------------------------------------------------------------------
+  redis-debug:
+    extends:
+      service: redis
+    container_name: rediver-redis-debug
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+    profiles:
+      - debug
 
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
   migrate:
-    image: migrate/migrate:latest
+    image: migrate/migrate:v4.17.0
     container_name: rediver-migrate
     volumes:
       - ./rediver-api/migrations:/migrations:ro
     env_file:
-      - .env.api.staging
+      - .env.db.staging
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD:-secret}@postgres:5432/${DB_NAME:-rediver}?sslmode=disable
     entrypoint: ["/bin/sh", "-c"]
@@ -115,7 +175,7 @@ services:
       - rediver-network
 
   # ---------------------------------------------------------------------------
-  # Database Seeding Service (Optional)
+  # Database Seeding Service (Optional - use with --profile seed)
   # ---------------------------------------------------------------------------
   seed:
     image: postgres:17-alpine
@@ -123,6 +183,7 @@ services:
     volumes:
       - ./rediver-api/migrations/seed:/seed:ro
     env_file:
+      - .env.db.staging
       - .env.api.staging
     environment:
       PGHOST: postgres
@@ -161,6 +222,7 @@ services:
     container_name: rediver-api
     restart: unless-stopped
     env_file:
+      - .env.db.staging
       - .env.api.staging
     environment:
       # Override for Docker network
@@ -184,6 +246,19 @@ services:
       start_period: 30s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
@@ -209,6 +284,19 @@ services:
       start_period: 60s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
 # =============================================================================
 # Volumes

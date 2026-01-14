@@ -13,6 +13,7 @@ Comprehensive guide for deploying Rediver Platform to staging environment.
 - [Step-by-Step Deployment](#step-by-step-deployment)
 - [Configuration](#configuration)
 - [Seeding Data](#seeding-data)
+- [Debug Mode](#debug-mode)
 - [Management Commands](#management-commands)
 - [Troubleshooting](#troubleshooting)
 - [Remote Server Deployment](#remote-server-deployment)
@@ -44,7 +45,7 @@ docker compose version
 - 8GB RAM
 - 50GB SSD
 - Docker & Docker Compose installed
-- Ports: 3000 (UI), 5432 (DB - optional), 6379 (Redis - optional)
+- Port 3000 (UI) - only port exposed externally
 ```
 
 ---
@@ -59,6 +60,7 @@ git clone <your-repo-url>
 cd rediver-setup
 
 # 2. Create environment files
+cp .env.db.staging.example .env.db.staging
 cp .env.api.staging.example .env.api.staging
 cp .env.ui.staging.example .env.ui.staging
 
@@ -96,6 +98,9 @@ ls -la
 ### Step 2: Create Environment Files
 
 ```bash
+# Copy DB configuration (credentials)
+cp .env.db.staging.example .env.db.staging
+
 # Copy API configuration
 cp .env.api.staging.example .env.api.staging
 
@@ -114,11 +119,29 @@ abc123def456ghi789...
 CSRF Secret (copy to CSRF_SECRET in .env.ui.staging):
 xyz789abc123...
 
-DB Password (copy to DB_PASSWORD in .env.api.staging):
+DB Password (copy to DB_PASSWORD in .env.db.staging):
 secure_password_here...
 ```
 
-### Step 3: Configure .env.api.staging
+### Step 3: Configure .env.db.staging
+
+Edit `.env.db.staging`:
+
+```bash
+nano .env.db.staging
+```
+
+**Critical values to update:**
+
+```env
+# Database (REQUIRED)
+DB_PASSWORD=<generated_password>
+
+# Redis (optional for staging)
+REDIS_PASSWORD=
+```
+
+### Step 4: Configure .env.api.staging
 
 Edit `.env.api.staging`:
 
@@ -129,9 +152,6 @@ nano .env.api.staging
 **Critical values to update:**
 
 ```env
-# Database (REQUIRED)
-DB_PASSWORD=<generated_password>
-
 # Authentication (REQUIRED - min 64 chars)
 AUTH_JWT_SECRET=<generated_jwt_secret>
 
@@ -139,7 +159,7 @@ AUTH_JWT_SECRET=<generated_jwt_secret>
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-### Step 4: Configure .env.ui.staging
+### Step 5: Configure .env.ui.staging
 
 Edit `.env.ui.staging`:
 
@@ -157,7 +177,7 @@ CSRF_SECRET=<generated_csrf_secret>
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### Step 5: Start Services
+### Step 6: Start Services
 
 ```bash
 # Option 1: Start without test data
@@ -167,7 +187,7 @@ make staging-up
 make staging-up-seed
 ```
 
-### Step 6: Verify Deployment
+### Step 7: Verify Deployment
 
 ```bash
 # Check running services
@@ -188,18 +208,26 @@ curl http://localhost:3000/api/health
 
 | File | Description |
 |------|-------------|
-| `.env.api.staging` | API configuration (database, auth, CORS, etc.) |
+| `.env.db.staging` | Database credentials (DB_PASSWORD, REDIS_PASSWORD) |
+| `.env.api.staging` | API configuration (auth, CORS, app settings) |
 | `.env.ui.staging` | UI configuration (URLs, cookies, security) |
 
-### API Configuration (.env.api.staging)
+### Database Configuration (.env.db.staging)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DB_USER` | Yes | rediver | Database username |
 | `DB_PASSWORD` | Yes | - | Database password |
 | `DB_NAME` | Yes | rediver | Database name |
-| `DB_EXTERNAL_PORT` | No | 5432 | External DB port for debugging |
 | `REDIS_PASSWORD` | No | - | Redis password (optional for staging) |
+
+### API Configuration (.env.api.staging)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DB_HOST` | Yes | postgres | Database host (Docker service name) |
+| `DB_PORT` | Yes | 5432 | Database port |
+| `REDIS_HOST` | Yes | redis | Redis host (Docker service name) |
 | `AUTH_JWT_SECRET` | Yes | - | JWT signing secret (min 64 chars) |
 | `AUTH_PROVIDER` | No | local | Auth mode: local, oidc |
 | `AUTH_ALLOW_REGISTRATION` | No | true | Allow user registration |
@@ -230,12 +258,12 @@ ui:
 
 ### Port Configuration
 
-| Service | Internal Port | External Port | Configurable |
-|---------|---------------|---------------|--------------|
-| UI (Next.js) | 3000 | 3000 | `UI_PORT` |
+| Service | Internal Port | External Port | Notes |
+|---------|---------------|---------------|-------|
+| UI (Next.js) | 3000 | 3000 | Configurable via `UI_PORT` |
 | API (Go) | 8080 | Not exposed | Internal only |
-| PostgreSQL | 5432 | 5432 | `DB_EXTERNAL_PORT` |
-| Redis | 6379 | 6379 | `REDIS_EXTERNAL_PORT` |
+| PostgreSQL | 5432 | Not exposed | Use debug profile to expose |
+| Redis | 6379 | Not exposed | Use debug profile to expose |
 
 ### Architecture
 
@@ -259,7 +287,7 @@ ui:
            ▼              ▼              ▼
     ┌───────────┐  ┌───────────┐  ┌───────────┐
     │ PostgreSQL│  │   Redis   │  │  Migrate  │
-    │   :5432   │  │   :6379   │  │  (one-off)│
+    │ (internal)│  │ (internal)│  │  (one-off)│
     └───────────┘  └───────────┘  └───────────┘
 ```
 
@@ -290,6 +318,56 @@ make db-seed
 |------|-------|----------|
 | Admin | admin@rediver.io | Password123 |
 | User | nguyen.an@techviet.vn | Password123 |
+
+---
+
+## Debug Mode
+
+By default, database and Redis ports are NOT exposed externally for security. Use debug mode when you need direct access.
+
+### Start with Debug Profile
+
+```bash
+# Start with debug profile (exposes DB/Redis ports)
+docker compose -f docker-compose.staging.yml --profile debug up -d
+
+# Or combine with seed profile
+docker compose -f docker-compose.staging.yml --profile debug --profile seed up -d
+```
+
+### Access Database
+
+```bash
+# Connect via psql
+psql -h localhost -p 5432 -U rediver -d rediver
+
+# Or use any database client (DBeaver, pgAdmin, etc.)
+# Host: localhost
+# Port: 5432
+# Database: rediver
+# Username: rediver
+# Password: (from .env.db.staging)
+```
+
+### Access Redis
+
+```bash
+# Connect via redis-cli
+redis-cli -h localhost -p 6379
+
+# If password is set
+redis-cli -h localhost -p 6379 -a <password>
+```
+
+### Stop Debug Mode
+
+```bash
+# Stop all services
+make staging-down
+
+# Start without debug profile
+make staging-up
+```
 
 ---
 
@@ -330,7 +408,7 @@ docker compose -f docker-compose.staging.yml logs -f ui --tail=100
 ### Database
 
 ```bash
-# Open psql shell
+# Open psql shell (requires debug profile)
 make db-shell
 
 # Run migrations
@@ -363,6 +441,7 @@ make staging-prune
 
 ```bash
 # Solution: Create environment files
+cp .env.db.staging.example .env.db.staging
 cp .env.api.staging.example .env.api.staging
 cp .env.ui.staging.example .env.ui.staging
 # Then update secrets
@@ -377,7 +456,7 @@ docker compose -f docker-compose.staging.yml ps postgres
 # Check logs
 docker compose -f docker-compose.staging.yml logs postgres
 
-# Verify credentials in .env.api.staging match
+# Verify credentials in .env.db.staging match
 ```
 
 #### 3. "Migration failed"
@@ -406,14 +485,18 @@ docker compose -f docker-compose.staging.yml logs api
 ```bash
 # Find what's using the port
 lsof -i :3000
-lsof -i :5432
 
 # Change port in env files
 # .env.ui.staging
 UI_PORT=3001
+```
 
-# .env.api.staging
-DB_EXTERNAL_PORT=5433
+#### 6. "Cannot connect to database externally"
+
+```bash
+# Database is NOT exposed by default
+# Use debug profile to expose:
+docker compose -f docker-compose.staging.yml --profile debug up -d
 ```
 
 ### Debug Mode
@@ -482,6 +565,7 @@ rsync -avz --exclude '.git' \
 
 ```bash
 # Create env files
+cp .env.db.staging.example .env.db.staging
 cp .env.api.staging.example .env.api.staging
 cp .env.ui.staging.example .env.ui.staging
 
@@ -578,11 +662,12 @@ make staging-restart
 ### Pre-Deployment
 
 - [ ] Docker & Docker Compose installed
+- [ ] `.env.db.staging` created from example
 - [ ] `.env.api.staging` created from example
 - [ ] `.env.ui.staging` created from example
+- [ ] `DB_PASSWORD` updated in `.env.db.staging`
 - [ ] `AUTH_JWT_SECRET` updated (min 64 chars)
 - [ ] `CSRF_SECRET` updated (min 32 chars)
-- [ ] `DB_PASSWORD` updated
 - [ ] `NEXT_PUBLIC_APP_URL` set correctly
 - [ ] `CORS_ALLOWED_ORIGINS` set correctly
 
@@ -595,7 +680,7 @@ make staging-restart
 
 ### For Remote Server
 
-- [ ] Firewall configured
+- [ ] Firewall configured (port 3000)
 - [ ] (Optional) Nginx reverse proxy setup
 - [ ] (Optional) SSL certificate installed
 - [ ] `SECURE_COOKIES=true` if using HTTPS

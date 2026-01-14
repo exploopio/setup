@@ -9,6 +9,7 @@
 #
 # Quick Start:
 #   1. Copy env files:
+#      cp .env.db.prod.example .env.db.prod
 #      cp .env.api.prod.example .env.api.prod
 #      cp .env.ui.prod.example .env.ui.prod
 #
@@ -37,6 +38,7 @@
 #   - Database and Redis are NOT exposed externally
 #   - Only UI service is accessible from outside
 #   - All traffic goes through UI's BFF proxy
+#   - Security hardening enabled (no-new-privileges, read-only where possible)
 # =============================================================================
 
 services:
@@ -48,22 +50,26 @@ services:
     container_name: rediver-postgres
     restart: always
     env_file:
-      - .env.api.prod
+      - .env.db.prod
     environment:
       POSTGRES_USER: ${DB_USER:-rediver}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: ${DB_NAME:-rediver}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
     # No external port exposure in production
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
       - rediver-network
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -86,19 +92,23 @@ services:
     container_name: rediver-redis
     restart: always
     env_file:
-      - .env.api.prod
+      - .env.db.prod
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
+    expose:
+      - "6379"
     # No external port exposure in production
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     networks:
       - rediver-network
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -117,15 +127,15 @@ services:
   # Database Migration Service
   # ---------------------------------------------------------------------------
   migrate:
-    image: migrate/migrate:latest
+    image: migrate/migrate:v4.17.0
     container_name: rediver-migrate
     volumes:
       - ./rediver-api/migrations:/migrations:ro
     env_file:
-      - .env.api.prod
+      - .env.db.prod
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-rediver}?sslmode=${DB_SSLMODE:-require}
-    entrypoint: [ "/bin/sh", "-c" ]
+    entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         echo "Waiting for database..."
@@ -138,6 +148,8 @@ services:
         condition: service_healthy
     networks:
       - rediver-network
+    security_opt:
+      - no-new-privileges:true
 
   # ---------------------------------------------------------------------------
   # Backend API (Go)
@@ -148,6 +160,7 @@ services:
     container_name: rediver-api
     restart: always
     env_file:
+      - .env.db.prod
       - .env.api.prod
     environment:
       # Database connection
@@ -167,13 +180,18 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     networks:
       - rediver-network
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=100M
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -205,13 +223,15 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     networks:
       - rediver-network
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:

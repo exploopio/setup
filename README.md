@@ -11,24 +11,30 @@ Rediver is a multi-tenant security platform with a Go backend API and Next.js fr
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
 │  │   rediver-ui │    │  rediver-api │    │   postgres   │      │
 │  │   (Next.js)  │───▶│    (Go)      │───▶│  (Database)  │      │
-│  │   Port 3000  │    │   Port 8080  │    │   Port 5432  │      │
+│  │   Port 3000  │    │   Internal   │    │   Internal   │      │
 │  └──────────────┘    └──────────────┘    └──────────────┘      │
 │         │                   │                                   │
 │         │                   ▼                                   │
 │         │            ┌──────────────┐                          │
 │         │            │    redis     │                          │
 │         └───────────▶│   (Cache)    │                          │
-│                      │   Port 6379  │                          │
+│                      │   Internal   │                          │
 │                      └──────────────┘                          │
 └─────────────────────────────────────────────────────────────────┘
+         ▲
+         │ Only port 3000 exposed
+         │
+    [Internet]
 ```
 
 ## Environment Files
 
-| Environment | API Config | UI Config |
-|-------------|------------|-----------|
-| Staging | `.env.api.staging` | `.env.ui.staging` |
-| Production | `.env.api.prod` | `.env.ui.prod` |
+| Environment | DB Config | API Config | UI Config |
+|-------------|-----------|------------|-----------|
+| Staging | `.env.db.staging` | `.env.api.staging` | `.env.ui.staging` |
+| Production | `.env.db.prod` | `.env.api.prod` | `.env.ui.prod` |
+
+**Note:** Database credentials are separated into `.env.db.*` for security.
 
 ## Docker Images
 
@@ -54,6 +60,7 @@ Images are pulled from Docker Hub (`rediverio`):
 cd rediver-setup
 
 # Copy environment templates
+cp .env.db.staging.example .env.db.staging
 cp .env.api.staging.example .env.api.staging
 cp .env.ui.staging.example .env.ui.staging
 
@@ -63,12 +70,16 @@ make generate-secrets
 
 ### 2. Configure Environment
 
+Edit `.env.db.staging` and update:
+
+```env
+# Database credentials
+DB_PASSWORD=<generated_password>
+```
+
 Edit `.env.api.staging` and update:
 
 ```env
-# Database (REQUIRED)
-DB_PASSWORD=<generated_password>
-
 # Authentication (REQUIRED - min 64 chars)
 AUTH_JWT_SECRET=<generated_jwt_secret>
 ```
@@ -99,6 +110,21 @@ make staging-up-seed
 - Email: `admin@rediver.io`
 - Password: `Password123`
 
+### 5. Debug Mode (Optional)
+
+To expose database and Redis ports for debugging:
+
+```bash
+# Start with debug profile
+docker compose -f docker-compose.staging.yml --profile debug up -d
+
+# Access database
+psql -h localhost -p 5432 -U rediver -d rediver
+
+# Access Redis
+redis-cli -h localhost -p 6379
+```
+
 ---
 
 ## Quick Start (Production)
@@ -109,6 +135,7 @@ make staging-up-seed
 cd rediver-setup
 
 # Copy environment templates
+cp .env.db.prod.example .env.db.prod
 cp .env.api.prod.example .env.api.prod
 cp .env.ui.prod.example .env.ui.prod
 
@@ -118,7 +145,7 @@ make generate-secrets
 
 ### 2. Configure Environment
 
-Edit `.env.api.prod` and update ALL `<CHANGE_ME>` values:
+Edit `.env.db.prod` and update:
 
 ```env
 # Database
@@ -126,7 +153,11 @@ DB_PASSWORD=<CHANGE_ME_STRONG_PASSWORD>
 
 # Redis
 REDIS_PASSWORD=<CHANGE_ME_STRONG_PASSWORD>
+```
 
+Edit `.env.api.prod` and update ALL `<CHANGE_ME>` values:
+
+```env
 # Authentication
 AUTH_JWT_SECRET=<CHANGE_ME_GENERATE_WITH_OPENSSL>
 
@@ -212,10 +243,12 @@ VERSION=v0.2.0 make prod-up
 rediver-setup/
 ├── docker-compose.staging.yml     # Staging deployment
 ├── docker-compose.prod.yml        # Production deployment
-├── .env.api.staging.example       # API config template (staging)
-├── .env.ui.staging.example        # UI config template (staging)
-├── .env.api.prod.example          # API config template (production)
-├── .env.ui.prod.example           # UI config template (production)
+├── .env.db.staging.example        # DB credentials (staging)
+├── .env.db.prod.example           # DB credentials (production)
+├── .env.api.staging.example       # API config (staging)
+├── .env.api.prod.example          # API config (production)
+├── .env.ui.staging.example        # UI config (staging)
+├── .env.ui.prod.example           # UI config (production)
 ├── Makefile                       # Convenience commands
 ├── README.md                      # This file
 └── docs/
@@ -226,14 +259,22 @@ rediver-setup/
 
 ## Environment Variables
 
+### Database Configuration (.env.db.*)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DB_USER` | Yes | Database username |
+| `DB_PASSWORD` | Yes | Database password |
+| `DB_NAME` | Yes | Database name |
+| `REDIS_PASSWORD` | Prod only | Redis password |
+
 ### API Configuration (.env.api.*)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DB_USER` | Yes | rediver | Database username |
-| `DB_PASSWORD` | Yes | - | Database password |
-| `DB_NAME` | Yes | rediver | Database name |
-| `REDIS_PASSWORD` | Prod only | - | Redis password |
+| `DB_HOST` | Yes | postgres | Database host |
+| `DB_PORT` | Yes | 5432 | Database port |
+| `REDIS_HOST` | Yes | redis | Redis host |
 | `AUTH_JWT_SECRET` | Yes | - | JWT signing secret (min 64 chars) |
 | `AUTH_PROVIDER` | No | local | Auth mode: local, oidc |
 | `CORS_ALLOWED_ORIGINS` | Yes | - | Allowed CORS origins |
@@ -287,7 +328,8 @@ docker compose -f docker-compose.staging.yml logs ui
 # Check if postgres is healthy
 docker compose -f docker-compose.staging.yml ps postgres
 
-# Access database shell
+# Access database shell (requires debug profile in staging)
+docker compose -f docker-compose.staging.yml --profile debug up -d
 make db-shell
 
 # Reset database
@@ -299,9 +341,6 @@ make staging-restart
 
 Change ports in env files:
 ```env
-# .env.api.staging
-DB_EXTERNAL_PORT=5433
-
 # .env.ui.staging
 UI_PORT=3001
 ```
@@ -311,14 +350,21 @@ UI_PORT=3001
 ## Security Notes
 
 ### Staging
-- Database and Redis ports exposed for debugging
+
+- Database and Redis NOT exposed by default
+- Use `--profile debug` to expose ports for debugging
 - Debug logging enabled
 - Test credentials available
 
 ### Production
+
 - Database and Redis NOT exposed externally
-- Only UI service accessible from outside
+- Only UI service accessible from outside (port 3000)
 - All API traffic goes through UI's BFF proxy
+- Security hardening enabled:
+  - `no-new-privileges` on all containers
+  - `read_only` filesystem for API container
+  - Resource limits enforced
 - HTTPS and secure cookies required
 - Strong passwords required
 
