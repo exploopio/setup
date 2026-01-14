@@ -37,7 +37,7 @@ PROD_SIMPLE_COMPOSE := docker-compose.prod-simple.yml
 export VERSION
 
 .PHONY: help init-staging init-prod init-ssl init-ssl-letsencrypt ssl-renew \
-        staging-up staging-up-seed staging-up-ssl staging-down staging-logs staging-ps staging-restart \
+        staging-up staging-up-seed staging-up-ssl staging-up-ssl-seed staging-seed staging-down staging-logs staging-ps staging-restart \
         prod-up prod-down prod-logs prod-ps prod-restart prod-simple-up prod-simple-down \
         nginx-reload nginx-logs nginx-test \
         staging-build staging-rebuild prod-build prod-rebuild \
@@ -195,10 +195,40 @@ staging-up-seed: check-staging ## Start staging with test data
 staging-up-ssl: check-staging check-nginx-staging check-ssl ## Start staging with Nginx/SSL
 	@echo "Starting staging environment with Nginx/SSL (version: $(VERSION))..."
 	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging pull
-	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d
+	@echo "Starting base services..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 3
+	@echo "Starting nginx..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d nginx
 	@echo ""
 	@echo "Services starting... UI: https://localhost"
 	@echo "View logs: make staging-logs"
+
+staging-up-ssl-seed: check-staging check-nginx-staging check-ssl ## Start staging with Nginx/SSL and test data
+	@echo "Starting staging environment with Nginx/SSL and test data (version: $(VERSION))..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging pull
+	@echo "Starting base services with seed..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile seed up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 3
+	@echo "Starting nginx..."
+	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging --profile ssl up -d nginx
+	@echo ""
+	@echo "Test credentials: admin@rediver.io / Password123"
+	@echo "UI: https://localhost"
+
+staging-seed: check-staging ## Seed test data to running staging database
+	@echo "Seeding test data..."
+	@if docker ps --format '{{.Names}}' | grep -q rediver-postgres; then \
+		docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging run --rm seed; \
+		echo ""; \
+		echo "✓ Seeding complete!"; \
+		echo "Test credentials: admin@rediver.io / Password123"; \
+	else \
+		echo "Error: PostgreSQL is not running. Start services first with 'make staging-up'"; \
+		exit 1; \
+	fi
 
 staging-down: ## Stop staging services
 	docker compose -f $(STAGING_COMPOSE) --env-file .env.db.staging down
