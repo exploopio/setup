@@ -8,5 +8,6 @@
 .DS_Store
 .claude/
 .vscode/
+# Environment files (ignore actual, keep examples)
 .env.*
-!.env.staging.example
+!.env.*.example

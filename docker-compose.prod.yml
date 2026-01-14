@@ -1,41 +1,42 @@
 # =============================================================================
-# Docker Compose - Staging Environment
+# Docker Compose - Production Environment
 # =============================================================================
-# Complete staging setup with API, UI, database, and automatic migrations.
+# Production deployment with optimized settings and security hardening.
 #
-# Images are pulled from Docker Hub: rediverio/rediver-api, rediverio/rediver-ui
+# Images are pulled from Docker Hub:
+#   - rediverio/rediver-api:<version>
+#   - rediverio/rediver-ui:<version>
 #
 # Quick Start:
 #   1. Copy env files:
-#      cp .env.db.staging.example .env.db.staging
-#      cp .env.api.staging.example .env.api.staging
-#      cp .env.ui.staging.example .env.ui.staging
+#      cp .env.api.prod.example .env.api.prod
+#      cp .env.ui.prod.example .env.ui.prod
 #
-#   2. Update secrets in env files
+#   2. Update ALL <CHANGE_ME> values in env files
 #
 #   3. Run:
-#      docker compose -f docker-compose.staging.yml up -d
+#      docker compose -f docker-compose.prod.yml up -d
 #
 # With specific version:
-#   VERSION=v0.2.0 docker compose -f docker-compose.staging.yml up -d
-#
-# With test data:
-#   docker compose -f docker-compose.staging.yml --profile seed up -d
+#   VERSION=v0.2.0 docker compose -f docker-compose.prod.yml up -d
 #
 # Commands:
-#   Start:      docker compose -f docker-compose.staging.yml up -d
-#   Logs:       docker compose -f docker-compose.staging.yml logs -f
-#   Stop:       docker compose -f docker-compose.staging.yml down
-#   Reset DB:   docker compose -f docker-compose.staging.yml down -v
-#   Pull new:   docker compose -f docker-compose.staging.yml pull
+#   Start:      docker compose -f docker-compose.prod.yml up -d
+#   Logs:       docker compose -f docker-compose.prod.yml logs -f
+#   Stop:       docker compose -f docker-compose.prod.yml down
+#   Pull new:   docker compose -f docker-compose.prod.yml pull
 #
 # Services:
-#   - postgres:  PostgreSQL 17 database (port 5432)
-#   - redis:     Redis 7 cache (port 6379)
+#   - postgres:  PostgreSQL 17 database (internal only)
+#   - redis:     Redis 7 cache (internal only)
 #   - migrate:   Runs migrations (exits after completion)
-#   - seed:      Seeds test data (--profile seed)
 #   - api:       Backend API (internal only)
 #   - ui:        Frontend UI (port 3000)
+#
+# Security Notes:
+#   - Database and Redis are NOT exposed externally
+#   - Only UI service is accessible from outside
+#   - All traffic goes through UI's BFF proxy
 # =============================================================================
 
 services:
@@ -45,25 +46,37 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: rediver-postgres
-    restart: unless-stopped
+    restart: always
     env_file:
-      - .env.api.staging
+      - .env.api.prod
     environment:
       POSTGRES_USER: ${DB_USER:-rediver}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: ${DB_NAME:-rediver}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    # No external port exposure in production
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}"]
-      interval: 5s
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}" ]
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   # ---------------------------------------------------------------------------
   # Redis Cache
@@ -71,22 +84,34 @@ services:
   redis:
     image: redis:7-alpine
     container_name: rediver-redis
-    restart: unless-stopped
+    restart: always
     env_file:
-      - .env.api.staging
-    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+      - .env.api.prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
-    ports:
-      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+    # No external port exposure in production
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # Database Migration Service
@@ -97,14 +122,14 @@ services:
     volumes:
       - ./rediver-api/migrations:/migrations:ro
     env_file:
-      - .env.api.staging
+      - .env.api.prod
     environment:
-      DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD:-secret}@postgres:5432/${DB_NAME:-rediver}?sslmode=disable
-    entrypoint: ["/bin/sh", "-c"]
+      DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-rediver}?sslmode=${DB_SSLMODE:-require}
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Waiting for database..."
-        sleep 5
+        sleep 10
         echo "Running migrations..."
         /migrate -path=/migrations -database "$${DATABASE_URL}" up
         echo "Migrations complete!"
@@ -115,57 +140,22 @@ services:
       - rediver-network
 
   # ---------------------------------------------------------------------------
-  # Database Seeding Service (Optional)
-  # ---------------------------------------------------------------------------
-  seed:
-    image: postgres:17-alpine
-    container_name: rediver-seed
-    volumes:
-      - ./rediver-api/migrations/seed:/seed:ro
-    env_file:
-      - .env.api.staging
-    environment:
-      PGHOST: postgres
-      PGPORT: 5432
-      PGUSER: ${DB_USER:-rediver}
-      PGPASSWORD: ${DB_PASSWORD:-secret}
-      PGDATABASE: ${DB_NAME:-rediver}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        echo "Waiting for migrations..."
-        sleep 10
-        echo "Seeding database..."
-        psql -f /seed/seed_required.sql
-        if [ "$${SEED_TEST_DATA}" = "true" ]; then
-          echo "Seeding test data..."
-          psql -f /seed/seed_test.sql 2>/dev/null || true
-        fi
-        echo "Seeding complete!"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-    networks:
-      - rediver-network
-    profiles:
-      - seed
-
-  # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-api:<version>-staging
+  # Image from Docker Hub: rediverio/rediver-api:<version>
   api:
-    image: rediverio/rediver-api:${VERSION:-v0.1.0}-staging
+    image: rediverio/rediver-api:${VERSION:-v0.1.0}
     container_name: rediver-api
-    restart: unless-stopped
+    restart: always
     env_file:
-      - .env.api.staging
+      - .env.api.prod
     environment:
-      # Override for Docker network
+      # Database connection
       DB_HOST: postgres
+      DB_PORT: 5432
+      # Redis connection
       REDIS_HOST: redis
+      REDIS_PORT: 6379
     expose:
       - "8080"
       - "9090"
@@ -177,38 +167,64 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-ui:<version>-staging
+  # Image from Docker Hub: rediverio/rediver-ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   ui:
-    image: rediverio/rediver-ui:${VERSION:-v0.1.0}-staging
+    image: rediverio/rediver-ui:${VERSION:-v0.1.0}
     container_name: rediver-ui
-    restart: unless-stopped
+    restart: always
     env_file:
-      - .env.ui.staging
+      - .env.ui.prod
     ports:
       - "${UI_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     networks:
       - rediver-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
 # =============================================================================
 # Volumes

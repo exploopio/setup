@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-01-14
 
-Hướng dẫn deploy Rediver Platform lên môi trường Staging.
+Comprehensive guide for deploying Rediver Platform to staging environment.
 
 ---
 
@@ -39,7 +39,7 @@ docker compose version
 
 ```bash
 # Minimum requirements
-- Ubuntu 22.04 LTS (hoặc tương đương)
+- Ubuntu 22.04 LTS (or equivalent)
 - 4 CPU cores
 - 8GB RAM
 - 50GB SSD
@@ -56,14 +56,15 @@ docker compose version
 ```bash
 # 1. Clone repository
 git clone <your-repo-url>
-cd rediverio
+cd rediver-setup
 
-# 2. Create environment file
-cp .env.staging.example .env.staging
+# 2. Create environment files
+cp .env.api.staging.example .env.api.staging
+cp .env.ui.staging.example .env.ui.staging
 
 # 3. Generate secure secrets
 make generate-secrets
-# Copy the generated values to .env.staging
+# Copy the generated values to env files
 
 # 4. Start all services with test data
 make staging-up-seed
@@ -85,18 +86,21 @@ open http://localhost:3000
 ```bash
 # Clone the project
 git clone <your-repo-url>
-cd rediverio
+cd rediver-setup
 
 # Verify structure
 ls -la
-# Should see: docker-compose.staging.yml, Makefile, rediver-api/, rediver-ui/
+# Should see: docker-compose.staging.yml, Makefile, .env.*.example files
 ```
 
-### Step 2: Configure Environment
+### Step 2: Create Environment Files
 
 ```bash
-# Copy example environment file
-cp .env.staging.example .env.staging
+# Copy API configuration
+cp .env.api.staging.example .env.api.staging
+
+# Copy UI configuration
+cp .env.ui.staging.example .env.ui.staging
 
 # Generate secure secrets
 make generate-secrets
@@ -104,24 +108,22 @@ make generate-secrets
 
 Output example:
 ```
-JWT Secret (copy to AUTH_JWT_SECRET):
+JWT Secret (copy to AUTH_JWT_SECRET in .env.api.staging):
 abc123def456ghi789...
 
-CSRF Secret (copy to CSRF_SECRET):
+CSRF Secret (copy to CSRF_SECRET in .env.ui.staging):
 xyz789abc123...
 
-DB Password (copy to DB_PASSWORD):
+DB Password (copy to DB_PASSWORD in .env.api.staging):
 secure_password_here...
 ```
 
-### Step 3: Update .env.staging
+### Step 3: Configure .env.api.staging
 
-Edit `.env.staging` with your values:
+Edit `.env.api.staging`:
 
 ```bash
-nano .env.staging
-# or
-vim .env.staging
+nano .env.api.staging
 ```
 
 **Critical values to update:**
@@ -130,18 +132,32 @@ vim .env.staging
 # Database (REQUIRED)
 DB_PASSWORD=<generated_password>
 
-# Authentication (REQUIRED)
+# Authentication (REQUIRED - min 64 chars)
 AUTH_JWT_SECRET=<generated_jwt_secret>
 
-# Security (REQUIRED)
+# CORS (update for your server)
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+```
+
+### Step 4: Configure .env.ui.staging
+
+Edit `.env.ui.staging`:
+
+```bash
+nano .env.ui.staging
+```
+
+**Critical values to update:**
+
+```env
+# Security (REQUIRED - min 32 chars)
 CSRF_SECRET=<generated_csrf_secret>
 
 # URLs (update for your server)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-# For remote server: http://your-server-ip:3000
 ```
 
-### Step 4: Start Services
+### Step 5: Start Services
 
 ```bash
 # Option 1: Start without test data
@@ -151,7 +167,7 @@ make staging-up
 make staging-up-seed
 ```
 
-### Step 5: Verify Deployment
+### Step 6: Verify Deployment
 
 ```bash
 # Check running services
@@ -164,31 +180,53 @@ make staging-logs
 curl http://localhost:3000/api/health
 ```
 
-### Step 6: Seed VN Security Assets (Optional)
-
-```bash
-# Seed comprehensive asset data for VN Security Team
-cd rediver-api
-make docker-seed-vnsecurity
-```
-
 ---
 
 ## Configuration
 
-### Environment Variables
+### Environment Files Structure
+
+| File | Description |
+|------|-------------|
+| `.env.api.staging` | API configuration (database, auth, CORS, etc.) |
+| `.env.ui.staging` | UI configuration (URLs, cookies, security) |
+
+### API Configuration (.env.api.staging)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DB_USER` | Yes | rediver | Database username |
 | `DB_PASSWORD` | Yes | - | Database password |
 | `DB_NAME` | Yes | rediver | Database name |
+| `DB_EXTERNAL_PORT` | No | 5432 | External DB port for debugging |
+| `REDIS_PASSWORD` | No | - | Redis password (optional for staging) |
 | `AUTH_JWT_SECRET` | Yes | - | JWT signing secret (min 64 chars) |
-| `CSRF_SECRET` | Yes | - | CSRF token secret (min 32 chars) |
-| `NEXT_PUBLIC_APP_URL` | Yes | http://localhost:3000 | Public URL |
-| `AUTH_PROVIDER` | No | local | Auth mode: local, oidc, hybrid |
-| `SECURE_COOKIES` | No | false | Set true for HTTPS |
+| `AUTH_PROVIDER` | No | local | Auth mode: local, oidc |
+| `AUTH_ALLOW_REGISTRATION` | No | true | Allow user registration |
+| `CORS_ALLOWED_ORIGINS` | Yes | http://localhost:3000 | Allowed CORS origins |
 | `LOG_LEVEL` | No | info | Log level: debug, info, warn, error |
+
+### UI Configuration (.env.ui.staging)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NEXT_PUBLIC_APP_URL` | Yes | http://localhost:3000 | Public app URL |
+| `NEXT_PUBLIC_AUTH_PROVIDER` | No | local | Auth provider |
+| `BACKEND_API_URL` | Yes | http://api:8080 | Internal API URL |
+| `CSRF_SECRET` | Yes | - | CSRF token secret (min 32 chars) |
+| `UI_PORT` | No | 3000 | UI external port |
+
+### Docker Images
+
+Staging uses images with `-staging` suffix:
+
+```yaml
+api:
+  image: rediverio/rediver-api:${VERSION:-v0.1.0}-staging
+
+ui:
+  image: rediverio/rediver-ui:${VERSION:-v0.1.0}-staging
+```
 
 ### Port Configuration
 
@@ -235,7 +273,6 @@ make docker-seed-vnsecurity
 |-----------|-------------|---------|
 | `seed_required.sql` | Required system data | Auto on startup |
 | `seed_test.sql` | Test users & sample data | `--profile seed` |
-| `seed_vnsecurity_assets.sql` | Full asset inventory | `make docker-seed-vnsecurity` |
 
 ### Seed Test Data
 
@@ -245,17 +282,6 @@ make staging-up-seed
 
 # Or manually after startup
 make db-seed
-```
-
-### Seed VN Security Assets
-
-```bash
-cd rediver-api
-make docker-seed-vnsecurity
-
-# Verify
-docker compose exec postgres psql -U rediver -d rediver -c \
-  "SELECT asset_type, COUNT(*) FROM assets GROUP BY asset_type ORDER BY asset_type;"
 ```
 
 ### Test Credentials
@@ -281,12 +307,13 @@ make staging-down
 
 # Restart
 make staging-restart
-make staging-restart-api  # API only
-make staging-restart-ui   # UI only
 
 # Status
 make staging-ps
 make status
+
+# Pull latest images
+make staging-pull
 ```
 
 ### Logs
@@ -294,10 +321,6 @@ make status
 ```bash
 # All logs
 make staging-logs
-
-# Specific service
-make staging-logs-api
-make staging-logs-ui
 
 # Docker compose directly
 docker compose -f docker-compose.staging.yml logs -f api
@@ -313,28 +336,11 @@ make db-shell
 # Run migrations
 make db-migrate
 
-# Rollback migration
-make db-migrate-down
-
 # Seed test data
 make db-seed
 
 # Reset database (WARNING: deletes all data)
 make db-reset
-```
-
-### Build
-
-```bash
-# Build all
-make staging-build
-
-# Force rebuild
-make staging-rebuild
-
-# Build specific service
-make build-api
-make build-ui
 ```
 
 ### Cleanup
@@ -353,11 +359,12 @@ make staging-prune
 
 ### Common Issues
 
-#### 1. "Error: .env.staging not found"
+#### 1. "Environment file not found"
 
 ```bash
-# Solution: Create environment file
-cp .env.staging.example .env.staging
+# Solution: Create environment files
+cp .env.api.staging.example .env.api.staging
+cp .env.ui.staging.example .env.ui.staging
 # Then update secrets
 ```
 
@@ -370,7 +377,7 @@ docker compose -f docker-compose.staging.yml ps postgres
 # Check logs
 docker compose -f docker-compose.staging.yml logs postgres
 
-# Verify credentials in .env.staging match
+# Verify credentials in .env.api.staging match
 ```
 
 #### 3. "Migration failed"
@@ -387,42 +394,32 @@ make staging-up-seed
 #### 4. "UI shows blank page / API errors"
 
 ```bash
-# Check API health
-curl http://localhost:8080/health  # Won't work - API is internal
-
 # Check via UI proxy
 curl http://localhost:3000/api/health
 
 # Check API logs
-make staging-logs-api
+docker compose -f docker-compose.staging.yml logs api
 ```
 
-#### 5. "Seed failed - duplicate key"
-
-```bash
-# This is usually OK - data already exists
-# If you need fresh data:
-make staging-clean
-make staging-up-seed
-```
-
-#### 6. "Port already in use"
+#### 5. "Port already in use"
 
 ```bash
 # Find what's using the port
 lsof -i :3000
 lsof -i :5432
 
-# Change port in .env.staging
+# Change port in env files
+# .env.ui.staging
 UI_PORT=3001
+
+# .env.api.staging
 DB_EXTERNAL_PORT=5433
 ```
 
 ### Debug Mode
 
 ```bash
-# Enable debug logging
-# Edit .env.staging:
+# Enable debug logging in .env.api.staging:
 APP_DEBUG=true
 LOG_LEVEL=debug
 
@@ -441,9 +438,6 @@ docker compose -f docker-compose.staging.yml ps
 # rediver-redis      healthy
 # rediver-api        healthy
 # rediver-ui         healthy
-
-# API Health
-docker compose -f docker-compose.staging.yml exec api wget -qO- http://localhost:8080/health
 
 # UI Health
 curl http://localhost:3000/api/health
@@ -477,28 +471,30 @@ docker compose version
 ```bash
 # Option 1: Git clone
 git clone <your-repo-url>
-cd rediverio
+cd rediver-setup
 
 # Option 2: rsync from local
-rsync -avz --exclude 'node_modules' --exclude '.git' \
-  /path/to/rediverio/ user@server:/home/user/rediverio/
+rsync -avz --exclude '.git' \
+  /path/to/rediver-setup/ user@server:/home/user/rediver-setup/
 ```
 
 ### Step 3: Configure for Server
 
 ```bash
-# Create .env.staging
-cp .env.staging.example .env.staging
-nano .env.staging
+# Create env files
+cp .env.api.staging.example .env.api.staging
+cp .env.ui.staging.example .env.ui.staging
 
-# Update these values:
-NEXT_PUBLIC_APP_URL=http://your-server-ip:3000
-CORS_ALLOWED_ORIGINS=http://your-server-ip:3000
+# Generate secrets
+make generate-secrets
 
-# If using domain with HTTPS:
-NEXT_PUBLIC_APP_URL=https://staging.yourdomain.com
-CORS_ALLOWED_ORIGINS=https://staging.yourdomain.com
-SECURE_COOKIES=true
+# Update .env.api.staging
+nano .env.api.staging
+# Set: CORS_ALLOWED_ORIGINS=http://your-server-ip:3000
+
+# Update .env.ui.staging
+nano .env.ui.staging
+# Set: NEXT_PUBLIC_APP_URL=http://your-server-ip:3000
 ```
 
 ### Step 4: Start on Server
@@ -563,7 +559,11 @@ sudo apt install certbot python3-certbot-nginx
 # Get certificate
 sudo certbot --nginx -d staging.yourdomain.com
 
-# Update .env.staging
+# Update env files for HTTPS
+# .env.api.staging
+CORS_ALLOWED_ORIGINS=https://staging.yourdomain.com
+
+# .env.ui.staging
 NEXT_PUBLIC_APP_URL=https://staging.yourdomain.com
 SECURE_COOKIES=true
 
@@ -573,50 +573,18 @@ make staging-restart
 
 ---
 
-## CI/CD Integration
-
-### GitHub Actions Deployment (Example)
-
-Create `.github/workflows/deploy-staging.yml`:
-
-```yaml
-name: Deploy to Staging
-
-on:
-  push:
-    branches: [develop]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to staging server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd ~/rediverio
-            git pull origin develop
-            make staging-rebuild
-```
-
----
-
-## Checklist
+## Deployment Checklist
 
 ### Pre-Deployment
 
 - [ ] Docker & Docker Compose installed
-- [ ] `.env.staging` created from example
-- [ ] Secrets generated (`make generate-secrets`)
+- [ ] `.env.api.staging` created from example
+- [ ] `.env.ui.staging` created from example
 - [ ] `AUTH_JWT_SECRET` updated (min 64 chars)
 - [ ] `CSRF_SECRET` updated (min 32 chars)
 - [ ] `DB_PASSWORD` updated
 - [ ] `NEXT_PUBLIC_APP_URL` set correctly
+- [ ] `CORS_ALLOWED_ORIGINS` set correctly
 
 ### Post-Deployment
 
@@ -624,7 +592,6 @@ jobs:
 - [ ] UI accessible at configured URL
 - [ ] Can login with test credentials
 - [ ] API health check passes
-- [ ] Database has seeded data (if using `--profile seed`)
 
 ### For Remote Server
 
@@ -638,5 +605,4 @@ jobs:
 ## Support
 
 - **Issues:** https://github.com/your-org/rediver/issues
-- **Documentation:** Check `docs/` folder in each service
-- **API Docs:** http://localhost:3000/api/docs (when running)
+- **Documentation:** Check `docs/` folder
