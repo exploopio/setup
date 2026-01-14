@@ -149,7 +149,7 @@ services:
   # Backend API (Go)
   # ---------------------------------------------------------------------------
   api:
-    image: rediverio/rediver-api:${VERSION:-v0.1.0}
+    image: rediverio/rediver-api:${API_VERSION:-latest}
     container_name: rediver-api
     restart: always
     env_file:
@@ -202,7 +202,7 @@ services:
   # ---------------------------------------------------------------------------
   # Port 3000 exposed for external reverse proxy
   ui:
-    image: rediverio/rediver-ui:${VERSION:-v0.1.0}
+    image: rediverio/rediver-ui:${UI_VERSION:-latest}
     container_name: rediver-ui
     restart: always
     env_file:

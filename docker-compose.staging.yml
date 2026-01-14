@@ -17,7 +17,7 @@
 #      docker compose -f docker-compose.staging.yml up -d
 #
 # With specific version:
-#   VERSION=v0.2.0 docker compose -f docker-compose.staging.yml up -d
+#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 docker compose -f docker-compose.staging.yml up -d
 #
 # With test data:
 #   docker compose -f docker-compose.staging.yml --profile seed up -d

@@ -23,7 +23,7 @@
 #      docker compose -f docker-compose.prod.yml up -d
 #
 # With specific version:
-#   VERSION=v0.2.0 docker compose -f docker-compose.prod.yml up -d
+#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 docker compose -f docker-compose.prod.yml up -d
 #
 # Commands:
 #   Start:      docker compose -f docker-compose.prod.yml up -d
@@ -212,7 +212,7 @@ services:
   # ---------------------------------------------------------------------------
   # Image from Docker Hub: rediverio/rediver-api:<version>
   api:
-    image: rediverio/rediver-api:${API_VERSION:-${VERSION:-latest}}
+    image: rediverio/rediver-api:${API_VERSION:-latest}
     container_name: rediver-api
     restart: always
     env_file:
@@ -269,7 +269,7 @@ services:
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: UI is internal only, accessed via nginx reverse proxy
   ui:
-    image: rediverio/rediver-ui:${VERSION:-v0.1.0}
+    image: rediverio/rediver-ui:${UI_VERSION:-latest}
     container_name: rediver-ui
     restart: always
     env_file:
