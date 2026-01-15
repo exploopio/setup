@@ -1,5 +1,8 @@
 # Rediver Platform
 
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docs.docker.com/compose/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Rediver is a multi-tenant security platform with a Go backend API and Next.js frontend.
 
 ## 📚 Documentation
