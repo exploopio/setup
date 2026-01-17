@@ -4,8 +4,8 @@
 # Production deployment with Nginx reverse proxy, SSL/TLS, and security hardening.
 #
 # Images are pulled from Docker Hub:
-#   - rediverio/rediver-api:<version>
-#   - rediverio/rediver-ui:<version>
+#   - rediverio/api:<version>
+#   - rediverio/ui:<version>
 #
 # Quick Start:
 #   1. Copy env files:
@@ -64,7 +64,7 @@ services:
   #     docker compose -f docker-compose.prod.yml up -d
   nginx:
     image: nginx:1.27-alpine
-    container_name: rediver-nginx
+    container_name: nginx
     restart: always
     ports:
       - "80:80"
@@ -84,7 +84,7 @@ services:
       ui:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -112,7 +112,7 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: rediver-postgres
+    container_name: postgres
     restart: always
     env_file:
       - .env.db.prod
@@ -132,7 +132,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - rediver-network
+      - app-network
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -154,7 +154,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: rediver-redis
+    container_name: redis
     restart: always
     env_file:
       - .env.db.prod
@@ -171,7 +171,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - rediver-network
+      - app-network
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -191,11 +191,11 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-migrations:<version>
+  # Image from Docker Hub: rediverio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: rediverio/rediver-migrations:${MIGRATIONS_VERSION:-latest}
-    container_name: rediver-migrate
+    image: rediverio/migrations:${MIGRATIONS_VERSION:-latest}
+    container_name: migrate
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-rediver}?sslmode=${DB_SSLMODE:-require}
     entrypoint: ["/bin/sh", "-c"]
@@ -210,17 +210,17 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
     security_opt:
       - no-new-privileges:true
 
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-api:<version>
+  # Image from Docker Hub: rediverio/api:<version>
   api:
-    image: rediverio/rediver-api:${API_VERSION:-latest}
-    container_name: rediver-api
+    image: rediverio/api:${API_VERSION:-latest}
+    container_name: api
     restart: always
     env_file:
       - .env.db.prod
@@ -249,7 +249,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - rediver-network
+      - app-network
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=100M
@@ -272,12 +272,12 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-ui:<version>
+  # Image from Docker Hub: rediverio/ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: UI is internal only, accessed via nginx reverse proxy
   ui:
-    image: rediverio/rediver-ui:${UI_VERSION:-latest}
-    container_name: rediver-ui
+    image: rediverio/ui:${UI_VERSION:-latest}
+    container_name: ui
     restart: always
     env_file:
       - .env.ui.prod
@@ -294,7 +294,7 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - rediver-network
+      - app-network
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -324,5 +324,5 @@ volumes:
 # Networks
 # =============================================================================
 networks:
-  rediver-network:
+  app-network:
     driver: bridge

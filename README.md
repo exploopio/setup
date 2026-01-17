@@ -24,7 +24,7 @@ Rediver is a multi-tenant security platform with a Go backend API and Next.js fr
 │                        Docker Network                           │
 │                                                                 │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │   rediver-ui │    │  rediver-api │    │   postgres   │      │
+│  │   ui │    │  api │    │   postgres   │      │
 │  │   (Next.js)  │───▶│    (Go)      │───▶│  (Database)  │      │
 │  │   Port 3000  │    │   Internal   │    │   Internal   │      │
 │  └──────────────┘    └──────────────┘    └──────────────┘      │
@@ -62,10 +62,10 @@ Images are pulled from Docker Hub (`rediverio`):
 
 | Image | Description | Staging Tag | Production Tag |
 |-------|-------------|-------------|----------------|
-| `rediverio/rediver-api` | Backend API | `staging-latest` | `latest` |
-| `rediverio/rediver-ui` | Frontend UI | `staging-latest` | `latest` |
-| `rediverio/rediver-migrations` | DB migrations | `staging-latest` | `latest` |
-| `rediverio/rediver-seed` | DB seed data | `staging-latest` | `latest` |
+| `rediverio/api` | Backend API | `staging-latest` | `latest` |
+| `rediverio/ui` | Frontend UI | `staging-latest` | `latest` |
+| `rediverio/migrations` | DB migrations | `staging-latest` | `latest` |
+| `rediverio/seed` | DB seed data | `staging-latest` | `latest` |
 
 See [docs/DOCKER_IMAGES.md](./docs/DOCKER_IMAGES.md) for detailed documentation.
 
@@ -81,7 +81,7 @@ See [docs/DOCKER_IMAGES.md](./docs/DOCKER_IMAGES.md) for detailed documentation.
 ### 1. Setup Environment Files
 
 ```bash
-cd rediver-setup
+cd setup
 
 # Copy environment templates from environments folder
 cp environments/.env.db.staging.example .env.db.staging
@@ -207,7 +207,7 @@ redis-cli -h localhost -p 6379
 #### 1. Setup Environment Files
 
 ```bash
-cd rediver-setup
+cd setup
 
 # Copy environment templates from environments folder
 cp environments/.env.db.prod.example .env.db.prod
@@ -348,7 +348,7 @@ This exposes port 3000 for your external reverse proxy to handle SSL termination
 ## Project Structure
 
 ```
-rediver-setup/
+setup/
 ├── docker-compose.staging.yml     # Staging deployment
 ├── docker-compose.prod.yml        # Production with Nginx/SSL
 ├── docker-compose.prod-simple.yml # Production without Nginx (external proxy)
@@ -492,8 +492,8 @@ git push origin v0.1.1
 
 | Environment | Image Tag Format | Example |
 |-------------|------------------|---------|
-| Staging | `v*.*.*-staging` | `rediverio/rediver-ui:v0.1.1-staging` |
-| Production | `v*.*.*` | `rediverio/rediver-ui:v0.1.1` |
+| Staging | `v*.*.*-staging` | `rediverio/ui:v0.1.1-staging` |
+| Production | `v*.*.*` | `rediverio/ui:v0.1.1` |
 
 ### Setup Requirements
 

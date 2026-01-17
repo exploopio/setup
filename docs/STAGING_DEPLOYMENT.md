@@ -59,7 +59,7 @@ docker compose version
 ```bash
 # 1. Clone repository
 git clone <your-repo-url>
-cd rediver-setup
+cd setup
 
 # 2. Create environment files from templates
 cp environments/.env.db.staging.example .env.db.staging
@@ -90,7 +90,7 @@ open http://localhost:3000
 ```bash
 # Clone the project
 git clone <your-repo-url>
-cd rediver-setup
+cd setup
 
 # Verify structure
 ls -la
@@ -253,10 +253,10 @@ Staging uses images with `-staging` suffix:
 
 ```yaml
 api:
-  image: rediverio/rediver-api:${VERSION:-v0.1.0}-staging
+  image: rediverio/api:${VERSION:-v0.1.0}-staging
 
 ui:
-  image: rediverio/rediver-ui:${VERSION:-v0.1.0}-staging
+  image: rediverio/ui:${VERSION:-v0.1.0}-staging
 ```
 
 ### Port Configuration
@@ -598,7 +598,7 @@ git push origin v0.1.1-staging
 
 # GitHub Actions will automatically:
 # - Build for linux/amd64 and linux/arm64
-# - Push to Docker Hub as rediverio/rediver-ui:v0.1.1-staging
+# - Push to Docker Hub as rediverio/ui:v0.1.1-staging
 ```
 
 **Option 2: Manual trigger**
@@ -742,7 +742,7 @@ Error response from daemon: failed to set up container networking: network xxx n
 docker compose -f docker-compose.staging.yml --env-file .env.db.staging --profile ssl down
 
 # Remove nginx container if it still exists
-docker rm -f rediver-nginx 2>/dev/null || true
+docker rm -f nginx 2>/dev/null || true
 
 # Clean up Docker networks
 docker network prune -f
@@ -783,10 +783,10 @@ make staging-restart
 docker compose -f docker-compose.staging.yml ps
 
 # Expected output:
-# rediver-postgres   healthy
-# rediver-redis      healthy
-# rediver-api        healthy
-# rediver-ui         healthy
+# postgres   healthy
+# redis      healthy
+# api        healthy
+# ui         healthy
 
 # UI Health
 curl http://localhost:3000/api/health
@@ -820,11 +820,11 @@ docker compose version
 ```bash
 # Option 1: Git clone
 git clone <your-repo-url>
-cd rediver-setup
+cd setup
 
 # Option 2: rsync from local
 rsync -avz --exclude '.git' \
-  /path/to/rediver-setup/ user@server:/home/user/rediver-setup/
+  /path/to/setup/ user@server:/home/user/setup/
 ```
 
 ### Step 3: Configure for Server

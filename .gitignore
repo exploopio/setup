@@ -1,9 +1,11 @@
 # =============================================================================
-/rediver-api/
-/rediver-ui/
-/rediver-docs/
-/rediver-keycloak/
-/rediver-schemas/
+# Old project folders (if cloned)
+/api/
+/ui/
+/sdk/
+/agent/
+/schemas/
+/keycloak/
 /old-projects/
 .DS_Store
 .claude/

@@ -3,7 +3,7 @@
 # =============================================================================
 # Complete staging setup with API, UI, database, and automatic migrations.
 #
-# Images are pulled from Docker Hub: rediverio/rediver-api, rediverio/rediver-ui
+# Images are pulled from Docker Hub: rediverio/api, rediverio/ui
 #
 # Quick Start:
 #   1. Copy env files:
@@ -68,7 +68,7 @@ services:
   #     docker compose --profile ssl up -d
   nginx:
     image: nginx:1.27-alpine
-    container_name: rediver-nginx
+    container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -88,7 +88,7 @@ services:
       ui:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
     profiles:
       - ssl
     deploy:
@@ -116,7 +116,7 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: rediver-postgres
+    container_name: postgres
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -136,7 +136,7 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - rediver-network
+      - app-network
     deploy:
       resources:
         limits:
@@ -157,7 +157,7 @@ services:
   postgres-debug:
     extends:
       service: postgres
-    container_name: rediver-postgres-debug
+    container_name: postgres-debug
     ports:
       - "${DB_EXTERNAL_PORT:-5432}:5432"
     profiles:
@@ -168,7 +168,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: rediver-redis
+    container_name: redis
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -185,7 +185,7 @@ services:
       retries: 10
       start_period: 5s
     networks:
-      - rediver-network
+      - app-network
     deploy:
       resources:
         limits:
@@ -206,7 +206,7 @@ services:
   redis-debug:
     extends:
       service: redis
-    container_name: rediver-redis-debug
+    container_name: redis-debug
     ports:
       - "${REDIS_EXTERNAL_PORT:-6379}:6379"
     profiles:
@@ -215,11 +215,11 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-migrations:<version>
+  # Image from Docker Hub: rediverio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: rediverio/rediver-migrations:${MIGRATIONS_VERSION:-staging-latest}
-    container_name: rediver-migrate
+    image: rediverio/migrations:${MIGRATIONS_VERSION:-staging-latest}
+    container_name: migrate
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD:-secret}@postgres:5432/${DB_NAME:-rediver}?sslmode=disable
     entrypoint: [ "/bin/sh", "-c" ]
@@ -234,12 +234,12 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
 
   # ---------------------------------------------------------------------------
   # Database Seeding Service (Optional - use with --profile seed)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-seed:<version>
+  # Image from Docker Hub: rediverio/seed:<version>
   # Seed files are bundled in the image, no local files needed.
   #
   # Available seed files:
@@ -251,8 +251,8 @@ services:
   #   --profile seed           - Run seed_required + seed_test
   #   --profile seed-vnsecurity - Run seed_vnsecurity_assets
   seed:
-    image: rediverio/rediver-seed:${SEED_VERSION:-staging-latest}
-    container_name: rediver-seed
+    image: rediverio/seed:${SEED_VERSION:-staging-latest}
+    container_name: seed
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -278,7 +278,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
     profiles:
       - seed
 
@@ -286,8 +286,8 @@ services:
   # VNSecurity Assets Seeding (Optional - use with --profile seed-vnsecurity)
   # ---------------------------------------------------------------------------
   seed-vnsecurity:
-    image: rediverio/rediver-seed:${SEED_VERSION:-staging-latest}
-    container_name: rediver-seed-vnsecurity
+    image: rediverio/seed:${SEED_VERSION:-staging-latest}
+    container_name: seed-vnsecurity
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -304,17 +304,17 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - rediver-network
+      - app-network
     profiles:
       - seed-vnsecurity
 
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-api:<version>
+  # Image from Docker Hub: rediverio/api:<version>
   api:
-    image: rediverio/rediver-api:${API_VERSION:-staging-latest}
-    container_name: rediver-api
+    image: rediverio/api:${API_VERSION:-staging-latest}
+    container_name: api
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -340,7 +340,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - rediver-network
+      - app-network
     deploy:
       resources:
         limits:
@@ -358,11 +358,11 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: rediverio/rediver-ui:<version>
+  # Image from Docker Hub: rediverio/ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   ui:
-    image: rediverio/rediver-ui:${UI_VERSION:-staging-latest}
-    container_name: rediver-ui
+    image: rediverio/ui:${UI_VERSION:-staging-latest}
+    container_name: ui
     restart: unless-stopped
     env_file:
       - .env.ui.staging
@@ -378,7 +378,7 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - rediver-network
+      - app-network
     deploy:
       resources:
         limits:
@@ -406,5 +406,5 @@ volumes:
 # Networks
 # =============================================================================
 networks:
-  rediver-network:
+  app-network:
     driver: bridge
