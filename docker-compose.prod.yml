@@ -64,7 +64,6 @@ services:
   #     docker compose -f docker-compose.prod.yml up -d
   nginx:
     image: nginx:1.27-alpine
-    container_name: nginx
     restart: always
     ports:
       - "80:80"
@@ -96,7 +95,7 @@ services:
           cpus: '0.1'
           memory: 64M
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -112,7 +111,6 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: postgres
     restart: always
     env_file:
       - .env.db.prod
@@ -126,7 +124,7 @@ services:
       - "5432"
     # No external port exposure in production
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -154,7 +152,6 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: redis
     restart: always
     env_file:
       - .env.db.prod
@@ -165,7 +162,7 @@ services:
       - "6379"
     # No external port exposure in production
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -195,10 +192,9 @@ services:
   # Migrations are bundled in the image, no local files needed.
   migrate:
     image: rediverio/migrations:${MIGRATIONS_VERSION:-latest}
-    container_name: migrate
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-rediver}?sslmode=${DB_SSLMODE:-require}
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Waiting for database..."
@@ -220,7 +216,6 @@ services:
   # Image from Docker Hub: rediverio/api:<version>
   api:
     image: rediverio/api:${API_VERSION:-latest}
-    container_name: api
     restart: always
     env_file:
       - .env.db.prod
@@ -243,7 +238,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -277,7 +272,6 @@ services:
   # Note: UI is internal only, accessed via nginx reverse proxy
   ui:
     image: rediverio/ui:${UI_VERSION:-latest}
-    container_name: ui
     restart: always
     env_file:
       - .env.ui.prod
@@ -288,7 +282,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -47,7 +47,6 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: postgres
     restart: always
     env_file:
       - .env.db.prod
@@ -60,7 +59,7 @@ services:
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-rediver} -d ${DB_NAME:-rediver}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -88,7 +87,6 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: redis
     restart: always
     env_file:
       - .env.db.prod
@@ -98,7 +96,7 @@ services:
     expose:
       - "6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -128,10 +126,9 @@ services:
   # Migrations are bundled in the image, no local files needed.
   migrate:
     image: rediverio/migrations:${MIGRATIONS_VERSION:-latest}
-    container_name: migrate
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-rediver}?sslmode=${DB_SSLMODE:-require}
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Waiting for database..."
@@ -153,7 +150,6 @@ services:
   # API exposed on port 8080 for external reverse proxy (api.rediver.io)
   api:
     image: rediverio/api:${API_VERSION:-latest}
-    container_name: api
     restart: always
     env_file:
       - .env.db.prod
@@ -175,7 +171,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -207,7 +203,6 @@ services:
   # Port 3000 exposed for external reverse proxy
   ui:
     image: rediverio/ui:${UI_VERSION:-latest}
-    container_name: ui
     restart: always
     env_file:
       - .env.ui.prod
@@ -217,7 +212,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -68,7 +68,6 @@ services:
   #     docker compose --profile ssl up -d
   nginx:
     image: nginx:1.27-alpine
-    container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -116,7 +115,6 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: postgres
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -157,7 +155,6 @@ services:
   postgres-debug:
     extends:
       service: postgres
-    container_name: postgres-debug
     ports:
       - "${DB_EXTERNAL_PORT:-5432}:5432"
     profiles:
@@ -168,7 +165,6 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: redis
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -206,7 +202,6 @@ services:
   redis-debug:
     extends:
       service: redis
-    container_name: redis-debug
     ports:
       - "${REDIS_EXTERNAL_PORT:-6379}:6379"
     profiles:
@@ -219,7 +214,6 @@ services:
   # Migrations are bundled in the image, no local files needed.
   migrate:
     image: rediverio/migrations:${MIGRATIONS_VERSION:-staging-latest}
-    container_name: migrate
     environment:
       DATABASE_URL: postgres://${DB_USER:-rediver}:${DB_PASSWORD:-secret}@postgres:5432/${DB_NAME:-rediver}?sslmode=disable
     entrypoint: [ "/bin/sh", "-c" ]
@@ -252,7 +246,6 @@ services:
   #   --profile seed-vnsecurity - Run seed_vnsecurity_assets
   seed:
     image: rediverio/seed:${SEED_VERSION:-staging-latest}
-    container_name: seed
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -287,7 +280,6 @@ services:
   # ---------------------------------------------------------------------------
   seed-vnsecurity:
     image: rediverio/seed:${SEED_VERSION:-staging-latest}
-    container_name: seed-vnsecurity
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -314,7 +306,6 @@ services:
   # Image from Docker Hub: rediverio/api:<version>
   api:
     image: rediverio/api:${API_VERSION:-staging-latest}
-    container_name: api
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -362,7 +353,6 @@ services:
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   ui:
     image: rediverio/ui:${UI_VERSION:-staging-latest}
-    container_name: ui
     restart: unless-stopped
     env_file:
       - .env.ui.staging
