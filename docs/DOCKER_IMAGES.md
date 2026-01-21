@@ -12,6 +12,7 @@ The Rediver platform uses 4 Docker images published to Docker Hub:
 | `rediverio/ui` | Frontend UI (Next.js) | ui |
 | `rediverio/migrations` | Database migrations | api |
 | `rediverio/seed` | Database seed data | api |
+| `rediverio/agent` | Security scanning agent | agent |
 
 ## Image Details
 
@@ -104,6 +105,65 @@ docker run --rm \
   rediverio/seed:staging-latest \
   psql -f /seed/seed_required.sql
 ```
+
+### 5. Agent Image (`rediverio/agent`)
+
+Security scanning agent for CI/CD integration and continuous monitoring.
+
+```bash
+docker pull rediverio/agent:latest   # Full (semgrep + gitleaks + trivy)
+docker pull rediverio/agent:slim     # Minimal (no tools)
+docker pull rediverio/agent:ci       # CI optimized (preloaded Trivy DB)
+```
+
+**Component Types:**
+| Type | Use Case | Mode | Recommended Image |
+|------|----------|------|-------------------|
+| `runner` | CI/CD pipelines | One-shot | `rediverio/agent:ci` |
+| `worker` | Production scanning | Daemon | `rediverio/agent:latest` |
+| `collector` | Infrastructure inventory | Daemon | `rediverio/agent:latest` |
+
+**Image Variants:**
+| Variant | Description | Use Case |
+|---------|-------------|----------|
+| `latest` | All tools included | Production scanning |
+| `slim` | Agent only, no tools | Custom tool setup |
+| `ci` | Full + preloaded Trivy DB | CI/CD (faster startup) |
+
+**Usage:**
+```bash
+# Runner: CI/CD one-shot scan
+docker run --rm \
+  -v "$(pwd)":/code:ro \
+  -e API_URL=https://api.rediver.io \
+  -e API_KEY=your-api-key \
+  rediverio/agent:ci \
+  -tools semgrep,gitleaks,trivy-fs -target /code -push
+
+# Worker: Server-controlled daemon
+docker run -d \
+  --name rediver-worker \
+  --restart unless-stopped \
+  -e API_URL=https://api.rediver.io \
+  -e API_KEY=your-api-key \
+  -e WORKER_ID=your-worker-id \
+  rediverio/agent:latest \
+  -daemon -enable-commands -verbose
+
+# Collector: Infrastructure scanning
+docker run -d \
+  --name rediver-collector \
+  --restart unless-stopped \
+  -e API_URL=https://api.rediver.io \
+  -e API_KEY=your-api-key \
+  -e WORKER_ID=your-collector-id \
+  -e AWS_ACCESS_KEY_ID=your-access-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret-key \
+  rediverio/agent:latest \
+  -daemon -enable-commands -verbose
+```
+
+See [Agent README](https://github.com/rediverio/agent) and [Worker Architecture](./WORKER_ARCHITECTURE.md) for full documentation.
 
 ## Version Configuration
 
