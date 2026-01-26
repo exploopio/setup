@@ -162,6 +162,28 @@ prod-restart: ## Restart production services. Use s=<service> to limit.
 	docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) restart $(s)
 
 # =============================================================================
+# Admin Bootstrap
+# =============================================================================
+
+bootstrap-admin-staging: ## Create initial admin user for staging. Use email=<email> role=<role>
+	@if [ -z "$(email)" ]; then \
+		echo "Usage: make bootstrap-admin-staging email=admin@example.com [role=super_admin]"; \
+		exit 1; \
+	fi
+	@ROLE=$${role:-super_admin}; \
+	docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) \
+		exec api ./bootstrap-admin -email "$(email)" -role "$$ROLE"
+
+bootstrap-admin-prod: ## Create initial admin user for production. Use email=<email> role=<role>
+	@if [ -z "$(email)" ]; then \
+		echo "Usage: make bootstrap-admin-prod email=admin@example.com [role=super_admin]"; \
+		exit 1; \
+	fi
+	@ROLE=$${role:-super_admin}; \
+	docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) \
+		exec api ./bootstrap-admin -email "$(email)" -role "$$ROLE"
+
+# =============================================================================
 # Database & Utilities
 # =============================================================================
 

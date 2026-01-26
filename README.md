@@ -150,7 +150,32 @@ make staging-seed
 | `make staging-up seed=true` | Start + auto-seed test data |
 | `make staging-seed` | Seed test data to running DB |
 
-### 6. Debug Mode (Optional)
+### 6. Create Admin User (For Admin UI)
+
+To access the Admin UI, you need to create an admin user with an API key:
+
+```bash
+# Create super admin (recommended for first admin)
+make bootstrap-admin-staging email=admin@yourcompany.com
+
+# Create with specific role
+make bootstrap-admin-staging email=ops@yourcompany.com role=ops_admin
+```
+
+**Available roles:**
+| Role | Permissions |
+|------|-------------|
+| `super_admin` | Full access: manage admins, agents, tokens, all operations |
+| `ops_admin` | Manage agents/tokens, view queue stats, cannot manage admins |
+| `viewer` | Read-only access to platform status |
+
+**Important:** The API key is displayed only once after creation. Save it securely!
+
+**Admin UI Access:**
+- URL: https://admin.localhost (or configured `ADMIN_HOST`)
+- Login with the API key generated above
+
+### 7. Debug Mode (Optional)
 
 To expose database and Redis ports for debugging:
 
