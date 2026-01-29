@@ -203,3 +203,69 @@ clean: ## Remove unused Docker resources (prune)
 	docker system prune -f
 
 prune: clean
+
+# =============================================================================
+# Tenant Management
+# =============================================================================
+
+assign-plan-staging: ## Assign plan to tenant (staging). Use tenant=<uuid> plan=<slug>
+	@if [ -z "$(tenant)" ]; then \
+		echo "Usage: make assign-plan-staging tenant=<uuid> plan=<plan_slug>"; \
+		echo ""; \
+		echo "Available plans: free, team, business, enterprise"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make assign-plan-staging tenant=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa plan=enterprise"; \
+		exit 1; \
+	fi
+	@if [ -z "$(plan)" ]; then \
+		echo "Error: plan is required"; \
+		echo "Available plans: free, team, business, enterprise"; \
+		exit 1; \
+	fi
+	@echo "Assigning $(plan) plan to tenant $(tenant)..."
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE slug = '$(plan)'), updated_at = NOW() WHERE id = '$(tenant)';"
+	@echo ""
+	@echo "Verifying assignment..."
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id WHERE t.id = '$(tenant)';"
+
+assign-plan-prod: ## Assign plan to tenant (production). Use tenant=<uuid> plan=<slug>
+	@if [ -z "$(tenant)" ]; then \
+		echo "Usage: make assign-plan-prod tenant=<uuid> plan=<plan_slug>"; \
+		echo ""; \
+		echo "Available plans: free, team, business, enterprise"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make assign-plan-prod tenant=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa plan=enterprise"; \
+		exit 1; \
+	fi
+	@if [ -z "$(plan)" ]; then \
+		echo "Error: plan is required"; \
+		echo "Available plans: free, team, business, enterprise"; \
+		exit 1; \
+	fi
+	@echo "Assigning $(plan) plan to tenant $(tenant)..."
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE slug = '$(plan)'), updated_at = NOW() WHERE id = '$(tenant)';"
+	@echo ""
+	@echo "Verifying assignment..."
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id WHERE t.id = '$(tenant)';"
+
+list-tenants-staging: ## List all tenants with their plans (staging)
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id ORDER BY t.name;"
+
+list-tenants-prod: ## List all tenants with their plans (production)
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id ORDER BY t.name;"
+
+list-plans-staging: ## List all available plans (staging)
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT id, name, slug, display_name FROM plans ORDER BY price_monthly;"
+
+list-plans-prod: ## List all available plans (production)
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+		"SELECT id, name, slug, display_name FROM plans ORDER BY price_monthly;"
