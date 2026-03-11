@@ -4,9 +4,9 @@
 # Production deployment with Nginx reverse proxy, SSL/TLS, and security hardening.
 #
 # Images are pulled from Docker Hub:
-#   - exploopio/api:<version>
-#   - exploopio/ui:<version>
-#   - exploopio/admin-ui:<version>
+#   - openctemio/api:<version>
+#   - openctemio/ui:<version>
+#   - openctemio/admin-ui:<version>
 #
 # Quick Start:
 #   1. Copy env files:
@@ -54,9 +54,9 @@ services:
   # Nginx Reverse Proxy (SSL Termination)
   # ---------------------------------------------------------------------------
   # Multi-domain nginx configuration serving:
-  #   - UI: ${NGINX_HOST} (e.g., exploop.io)
-  #   - API: ${API_HOST} (e.g., api.exploop.io)
-  #   - Admin UI: ${ADMIN_HOST} (e.g., admin.exploop.io)
+  #   - UI: ${NGINX_HOST} (e.g., openctem.io)
+  #   - API: ${API_HOST} (e.g., api.openctem.io)
+  #   - Admin UI: ${ADMIN_HOST} (e.g., admin.openctem.io)
   #
   # Environment Variables:
   #   - NGINX_HOST: UI hostname (REQUIRED for production)
@@ -64,7 +64,7 @@ services:
   #   - ADMIN_HOST: Admin UI hostname (REQUIRED for production)
   #
   # Usage:
-  #   NGINX_HOST=exploop.io API_HOST=api.exploop.io ADMIN_HOST=admin.exploop.io \
+  #   NGINX_HOST=openctem.io API_HOST=api.openctem.io ADMIN_HOST=admin.openctem.io \
   #     docker compose -f docker-compose.prod.yml up -d
   nginx:
     image: nginx:1.27-alpine
@@ -122,16 +122,16 @@ services:
     env_file:
       - .env.db.prod
     environment:
-      POSTGRES_USER: ${DB_USER:-exploop}
+      POSTGRES_USER: ${DB_USER:-openctem}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      POSTGRES_DB: ${DB_NAME:-exploop}
+      POSTGRES_DB: ${DB_NAME:-openctem}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
     # No external port exposure in production
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-exploop} -d ${DB_NAME:-exploop}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-openctem} -d ${DB_NAME:-openctem}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -195,12 +195,12 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: exploopio/migrations:<version>
+  # Image from Docker Hub: openctemio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: exploopio/migrations:${MIGRATIONS_VERSION:-latest}
+    image: openctemio/migrations:${MIGRATIONS_VERSION:-latest}
     environment:
-      DATABASE_URL: postgres://${DB_USER:-exploop}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-exploop}?sslmode=${DB_SSLMODE:-require}
+      DATABASE_URL: postgres://${DB_USER:-openctem}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-openctem}?sslmode=${DB_SSLMODE:-require}
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
@@ -220,9 +220,9 @@ services:
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: exploopio/api:<version>
+  # Image from Docker Hub: openctemio/api:<version>
   api:
-    image: exploopio/api:${API_VERSION:-latest}
+    image: openctemio/api:${API_VERSION:-latest}
     restart: always
     env_file:
       - .env.db.prod
@@ -274,11 +274,11 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: exploopio/ui:<version>
+  # Image from Docker Hub: openctemio/ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: UI is internal only, accessed via nginx reverse proxy
   ui:
-    image: exploopio/ui:${UI_VERSION:-latest}
+    image: openctemio/ui:${UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.ui.prod
@@ -315,11 +315,11 @@ services:
   # ---------------------------------------------------------------------------
   # Admin UI (Next.js) - Platform Administration Console
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: exploopio/admin-ui:<version>
+  # Image from Docker Hub: openctemio/admin-ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: Admin UI is internal only, accessed via nginx reverse proxy
   admin-ui:
-    image: exploopio/admin-ui:${ADMIN_UI_VERSION:-latest}
+    image: openctemio/admin-ui:${ADMIN_UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.admin-ui.prod

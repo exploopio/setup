@@ -1,6 +1,6 @@
 # Nginx Configuration
 
-Nginx reverse proxy configuration for Exploop Platform with multi-domain and SSL/TLS support.
+Nginx reverse proxy configuration for OpenCTEM Platform with multi-domain and SSL/TLS support.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ Nginx reverse proxy configuration for Exploop Platform with multi-domain and SSL
                     │                            Nginx                                 │
                     │                                                                  │
     Internet ──────►│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-                    │  │ exploop.io      │  │ api.exploop.io  │  │admin.exploop.io │  │
+                    │  │ openctem.io      │  │ api.openctem.io  │  │admin.openctem.io │  │
                     │  │ (NGINX_HOST)    │  │ (API_HOST)      │  │ (ADMIN_HOST)    │  │
                     │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
                     │           │                    │                    │           │
@@ -44,9 +44,9 @@ make staging-up-ssl
 cp environments/.env.nginx.prod.example .env.nginx.prod
 
 # 2. Update domains in .env.nginx.prod
-NGINX_HOST=exploop.io
-API_HOST=api.exploop.io
-ADMIN_HOST=admin.exploop.io
+NGINX_HOST=openctem.io
+API_HOST=api.openctem.io
+ADMIN_HOST=admin.openctem.io
 
 # 3. Setup SSL certificates (see SSL section below)
 
@@ -60,9 +60,9 @@ make prod-up
 
 | Variable | Staging Default | Production | Description |
 |----------|-----------------|------------|-------------|
-| `NGINX_HOST` | `localhost` | Required | UI domain (e.g., `exploop.io`) |
-| `API_HOST` | `api.localhost` | Required | API domain (e.g., `api.exploop.io`) |
-| `ADMIN_HOST` | `admin.localhost` | Required | Admin UI domain (e.g., `admin.exploop.io`) |
+| `NGINX_HOST` | `localhost` | Required | UI domain (e.g., `openctem.io`) |
+| `API_HOST` | `api.localhost` | Required | API domain (e.g., `api.openctem.io`) |
+| `ADMIN_HOST` | `admin.localhost` | Required | Admin UI domain (e.g., `admin.openctem.io`) |
 
 ### Example Configurations
 
@@ -75,16 +75,16 @@ ADMIN_HOST=admin.localhost
 
 **Staging:**
 ```bash
-NGINX_HOST=staging.exploop.io
-API_HOST=api.staging.exploop.io
-ADMIN_HOST=admin.staging.exploop.io
+NGINX_HOST=staging.openctem.io
+API_HOST=api.staging.openctem.io
+ADMIN_HOST=admin.staging.openctem.io
 ```
 
 **Production:**
 ```bash
-NGINX_HOST=exploop.io
-API_HOST=api.exploop.io
-ADMIN_HOST=admin.exploop.io
+NGINX_HOST=openctem.io
+API_HOST=api.openctem.io
+ADMIN_HOST=admin.openctem.io
 ```
 
 ## Multi-Domain Setup
@@ -126,7 +126,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout nginx/ssl/key.pem \
   -out nginx/ssl/cert.pem \
   -subj "/CN=localhost" \
-  -addext "subjectAltName=DNS:localhost,DNS:api.localhost,DNS:admin.localhost,DNS:*.exploop.io"
+  -addext "subjectAltName=DNS:localhost,DNS:api.localhost,DNS:admin.localhost,DNS:*.openctem.io"
 ```
 
 ### Option 2: Let's Encrypt (Production)
@@ -140,13 +140,13 @@ docker compose down
 
 # 3. Obtain certificates for all domains
 sudo certbot certonly --standalone \
-  -d exploop.io \
-  -d api.exploop.io \
-  -d admin.exploop.io
+  -d openctem.io \
+  -d api.openctem.io \
+  -d admin.openctem.io
 
 # 4. Copy certificates
-sudo cp /etc/letsencrypt/live/exploop.io/fullchain.pem nginx/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/exploop.io/privkey.pem nginx/ssl/key.pem
+sudo cp /etc/letsencrypt/live/openctem.io/fullchain.pem nginx/ssl/cert.pem
+sudo cp /etc/letsencrypt/live/openctem.io/privkey.pem nginx/ssl/key.pem
 sudo chmod 644 nginx/ssl/cert.pem
 sudo chmod 600 nginx/ssl/key.pem
 
@@ -156,7 +156,7 @@ make prod-up
 
 ### Option 3: Commercial Certificate
 
-1. Purchase wildcard SSL certificate (recommended for `*.exploop.io`)
+1. Purchase wildcard SSL certificate (recommended for `*.openctem.io`)
 2. Place certificate files in `nginx/ssl/`:
    - `cert.pem` - Certificate chain
    - `key.pem` - Private key
@@ -168,9 +168,9 @@ nginx/
 ├── nginx.conf                          # Main nginx configuration
 ├── templates/
 │   ├── 00-upstreams.conf.template      # Shared upstream definitions
-│   ├── admin-ui.conf.template          # Admin UI server block (admin.exploop.io)
-│   ├── api.conf.template               # API server block (api.exploop.io)
-│   └── ui.conf.template                # UI server block (exploop.io)
+│   ├── admin-ui.conf.template          # Admin UI server block (admin.openctem.io)
+│   ├── api.conf.template               # API server block (api.openctem.io)
+│   └── ui.conf.template                # UI server block (openctem.io)
 ├── ssl/                                # SSL certificates directory
 │   ├── .gitignore                      # Ignore certificate files
 │   ├── cert.pem                        # SSL certificate (you provide)
@@ -196,7 +196,7 @@ The API server is configured with CORS headers to allow requests from:
 - `localhost` (development)
 - `127.0.0.1` (development)
 - `${NGINX_HOST}` (UI domain)
-- `*.exploop.io` (all Rediver subdomains)
+- `*.openctem.io` (all OpenCTEM subdomains)
 
 ## Management Commands
 
@@ -242,8 +242,8 @@ make ssl-renew
 sudo certbot renew
 
 # Copy renewed certificates
-sudo cp /etc/letsencrypt/live/exploop.io/fullchain.pem nginx/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/exploop.io/privkey.pem nginx/ssl/key.pem
+sudo cp /etc/letsencrypt/live/openctem.io/fullchain.pem nginx/ssl/cert.pem
+sudo cp /etc/letsencrypt/live/openctem.io/privkey.pem nginx/ssl/key.pem
 
 # Reload nginx
 make ssl-renew

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Nginx Configuration for Rediver API (api.rediver.io)
+# Nginx Configuration for OpenCTEM API (api.openctem.io)
 # ==============================================================================
 # API-specific nginx configuration with:
 # - SSL/TLS support
@@ -95,7 +95,7 @@ server {
     # -----------------------------------------------------------------------
     # Allow requests from UI domain
     set $cors_origin "";
-    if ($http_origin ~* "^https?://(localhost|127\.0\.0\.1|${NGINX_HOST}|.*\.rediver\.io)(:[0-9]+)?$") {
+    if ($http_origin ~* "^https?://(localhost|127\.0\.0\.1|${NGINX_HOST}|.*\.openctem\.io)(:[0-9]+)?$") {
         set $cors_origin $http_origin;
     }
 
@@ -177,7 +177,7 @@ server {
         # CORS headers
         add_header Access-Control-Allow-Origin $cors_origin always;
         add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
-        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Rediver-Worker-ID" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-OpenCTEM-Worker-ID" always;
         add_header Access-Control-Allow-Credentials "true" always;
 
         if ($request_method = OPTIONS) {
@@ -262,7 +262,7 @@ server {
     # Root - API Info
     # -----------------------------------------------------------------------
     location = / {
-        return 200 '{"service":"Rediver API","version":"v1","docs":"/docs"}';
+        return 200 '{"service":"OpenCTEM API","version":"v1","docs":"/docs"}';
         add_header Content-Type application/json;
     }
 

@@ -1,21 +1,21 @@
-# Exploop Platform
+# OpenCTEM Platform
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docs.docker.com/compose/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Rediver is a multi-tenant security platform with a Go backend API and Next.js frontend.
+OpenCTEM is a multi-tenant security platform with a Go backend API and Next.js frontend.
 
 ## 📚 Documentation
 
 | Guide | Description |
 |-------|-------------|
-| [Getting Started](https://docs.exploop.io/docs/getting-started) | Quick start guide |
-| [Architecture](https://docs.exploop.io/docs/architecture/overview) | System design |
-| [Authentication](https://docs.exploop.io/docs/guides/authentication) | JWT & OIDC auth flow |
-| [Multi-tenancy](https://docs.exploop.io/docs/guides/multi-tenancy) | Teams & tenant switching |
-| [Permissions](https://docs.exploop.io/docs/guides/permissions) | Role-based access control |
-| [Configuration](https://docs.exploop.io/docs/operations/configuration) | Environment variables |
-| [Troubleshooting](https://docs.exploop.io/docs/operations/troubleshooting) | Common issues |
+| [Getting Started](https://docs.openctem.io/docs/getting-started) | Quick start guide |
+| [Architecture](https://docs.openctem.io/docs/architecture/overview) | System design |
+| [Authentication](https://docs.openctem.io/docs/guides/authentication) | JWT & OIDC auth flow |
+| [Multi-tenancy](https://docs.openctem.io/docs/guides/multi-tenancy) | Teams & tenant switching |
+| [Permissions](https://docs.openctem.io/docs/guides/permissions) | Role-based access control |
+| [Configuration](https://docs.openctem.io/docs/operations/configuration) | Environment variables |
+| [Troubleshooting](https://docs.openctem.io/docs/operations/troubleshooting) | Common issues |
 
 ## Architecture
 
@@ -58,14 +58,14 @@ Environment example files are located in `environments/` folder:
 
 ## Docker Images
 
-Images are pulled from Docker Hub (.exploopio`):
+Images are pulled from Docker Hub (`openctemio`):
 
 | Image | Description | Staging Tag | Production Tag |
 |-------|-------------|-------------|----------------|
-| `exploopio/api` | Backend API | `staging-latest` | `latest` |
-| `exploopio/ui` | Frontend UI | `staging-latest` | `latest` |
-| `exploopio/migrations` | DB migrations | `staging-latest` | `latest` |
-| `exploopio/seed` | DB seed data | `staging-latest` | `latest` |
+| `openctemio/api` | Backend API | `staging-latest` | `latest` |
+| `openctemio/ui` | Frontend UI | `staging-latest` | `latest` |
+| `openctemio/migrations` | DB migrations | `staging-latest` | `latest` |
+| `openctemio/seed` | DB seed data | `staging-latest` | `latest` |
 
 See [docs/DOCKER_IMAGES.md](./docs/DOCKER_IMAGES.md) for detailed documentation.
 
@@ -132,7 +132,7 @@ make staging-up seed=true
 - **API**: https://api.localhost
 
 **Test credentials** (when using `seed=true`):
-- Email: `admin@exploop.io`
+- Email: `admin@openctem.io`
 - Password: `Password123`
 
 ### 5. Database Migration & Seeding
@@ -184,7 +184,7 @@ To expose database and Redis ports for debugging:
 docker compose -f docker-compose.staging.yml --profile debug --profile ssl up -d
 
 # Access database
-psql -h localhost -p 5432 -U.exploop -d.exploop
+psql -h localhost -p 5432 -U openctem -d openctem
 
 # Access Redis
 redis-cli -h localhost -p 6379
@@ -414,7 +414,7 @@ setup/
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NEXT_PUBLIC_APP_NAME` | No | Exploop | Application name |
+| `NEXT_PUBLIC_APP_NAME` | No | OpenCTEM | Application name |
 | `NEXT_PUBLIC_APP_URL` | Yes | http://localhost:3000 | Public app URL |
 | `BACKEND_API_URL` | Yes | http://api:8080 | Internal API URL |
 | `CSRF_SECRET` | Yes | - | CSRF token secret (min 32 chars) |
@@ -505,8 +505,8 @@ git push origin v0.1.1
 
 | Environment | Image Tag Format | Example |
 |-------------|------------------|---------|
-| Staging | `v*.*.*-staging` | `exploopio/ui:v0.1.1-staging` |
-| Production | `v*.*.*` | `exploopio/ui:v0.1.1` |
+| Staging | `v*.*.*-staging` | `openctemio/ui:v0.1.1-staging` |
+| Production | `v*.*.*` | `openctemio/ui:v0.1.1` |
 
 ### Setup Requirements
 
@@ -543,4 +543,4 @@ See [docs/CICD.md](docs/CICD.md) for detailed documentation.
 
 ## License
 
-Copyright 2024 Rediver. All rights reserved.
+Copyright 2024-2026 OpenCTEM. All rights reserved.

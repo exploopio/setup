@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-01-14
 
-Comprehensive guide for deploying Exploop Platform to staging environment.
+Comprehensive guide for deploying OpenCTEM Platform to staging environment.
 
 ---
 
@@ -77,7 +77,7 @@ make staging-up-seed
 open http://localhost:3000
 
 # Login credentials:
-# Email: admin@exploop.io
+# Email: admin@openctem.io
 # Password: Password123
 ```
 
@@ -219,9 +219,9 @@ curl http://localhost:3000/api/health
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DB_USER` | Yes |.exploop | Database username |
+| `DB_USER` | Yes | openctem | Database username |
 | `DB_PASSWORD` | Yes | - | Database password |
-| `DB_NAME` | Yes |.exploop | Database name |
+| `DB_NAME` | Yes | openctem | Database name |
 | `REDIS_PASSWORD` | No | - | Redis password (optional for staging) |
 
 ### API Configuration (.env.api.staging)
@@ -253,10 +253,10 @@ Staging uses images with `-staging` suffix:
 
 ```yaml
 api:
-  image: exploopio/api:${VERSION:-v0.1.0}-staging
+  image: openctemio/api:${VERSION:-v0.1.0}-staging
 
 ui:
-  image: exploopio/ui:${VERSION:-v0.1.0}-staging
+  image: openctemio/ui:${VERSION:-v0.1.0}-staging
 ```
 
 ### Port Configuration
@@ -322,7 +322,7 @@ make db-seed
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@exploop.io | Password123 |
+| Admin | admin@openctem.io | Password123 |
 | User | nguyen.an@techviet.vn | Password123 |
 
 ---
@@ -467,13 +467,13 @@ docker compose -f docker-compose.staging.yml --profile debug --profile seed up -
 
 ```bash
 # Connect via psql
-psql -h localhost -p 5432 -U.exploop -d.exploop
+psql -h localhost -p 5432 -U openctem -d openctem
 
 # Or use any database client (DBeaver, pgAdmin, etc.)
 # Host: localhost
 # Port: 5432
-# Database:.exploop
-# Username:.exploop
+# Database: openctem
+# Username: openctem
 # Password: (from .env.db.staging)
 ```
 
@@ -598,7 +598,7 @@ git push origin v0.1.1-staging
 
 # GitHub Actions will automatically:
 # - Build for linux/amd64 and linux/arm64
-# - Push to Docker Hub as exploopio/ui:v0.1.1-staging
+# - Push to Docker Hub as openctemio/ui:v0.1.1-staging
 ```
 
 **Option 2: Manual trigger**
@@ -874,7 +874,7 @@ sudo ufw enable
 sudo apt install nginx
 
 # Create config
-sudo nano /etc/nginx/sites-available.exploop
+sudo nano /etc/nginx/sites-available/openctem
 
 # Add:
 server {
@@ -895,7 +895,7 @@ server {
 }
 
 # Enable site
-sudo ln -s /etc/nginx/sites-available.exploop /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/openctem /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -965,5 +965,5 @@ make staging-restart
 
 ## Support
 
-- **Issues:** https://github.com/your-org/exploop/issues
+- **Issues:** https://github.com/openctemio/openctem/issues
 - **Documentation:** Check `docs/` folder

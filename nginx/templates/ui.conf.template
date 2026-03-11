@@ -1,5 +1,5 @@
 # ==============================================================================
-# Nginx Configuration for Rediver UI (rediver.io / app.rediver.io)
+# Nginx Configuration for OpenCTEM UI (openctem.io / app.openctem.io)
 # ==============================================================================
 # UI-specific nginx configuration with:
 # - SSL/TLS support

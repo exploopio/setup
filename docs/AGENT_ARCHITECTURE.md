@@ -1,6 +1,6 @@
 # Agent Architecture
 
-This document describes the unified agent architecture for the Rediver platform.
+This document describes the unified agent architecture for the OpenCTEM platform.
 
 ## Overview
 
@@ -31,9 +31,9 @@ Runners are designed for CI/CD pipelines and one-shot scanning scenarios.
 # GitHub Actions
 docker run --rm \
   -v "$(pwd)":/code:ro \
-  -e API_URL=https://api.exploop.io \
-  -e API_KEY=$EXPLOOP_API_KEY \
-  exploopio/agent:ci \
+  -e API_URL=https://api.openctem.io \
+  -e API_KEY=$OPENCTEM_API_KEY \
+  openctemio/agent:ci \
   -tools semgrep,gitleaks,trivy-fs -target /code -push -comments
 ```
 
@@ -51,12 +51,12 @@ Workers are long-running daemons controlled by the server.
 ```bash
 # Server-controlled daemon
 docker run -d \
-  --name.exploop-worker \
+  --name openctem-worker \
   --restart unless-stopped \
-  -e API_URL=https://api.exploop.io \
-  -e API_KEY=$EXPLOOP_API_KEY \
+  -e API_URL=https://api.openctem.io \
+  -e API_KEY=$OPENCTEM_API_KEY \
   -e AGENT_ID=$AGENT_ID \
-  exploopio/agent:latest \
+  openctemio/agent:latest \
   -daemon -enable-commands -verbose
 ```
 
@@ -74,14 +74,14 @@ Collectors are specialized agents for data gathering.
 ```bash
 # Collector daemon
 docker run -d \
-  --name.exploop-collector \
+  --name openctem-collector \
   --restart unless-stopped \
-  -e API_URL=https://api.exploop.io \
-  -e API_KEY=$EXPLOOP_API_KEY \
+  -e API_URL=https://api.openctem.io \
+  -e API_KEY=$OPENCTEM_API_KEY \
   -e AGENT_ID=$AGENT_ID \
   -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-  exploopio/agent:latest \
+  openctemio/agent:latest \
   -daemon -enable-commands -verbose
 ```
 
@@ -98,12 +98,12 @@ Sensors are specialized agents for external attack surface monitoring.
 ```bash
 # Sensor daemon
 docker run -d \
-  --name.exploop-sensor \
+  --name openctem-sensor \
   --restart unless-stopped \
-  -e API_URL=https://api.exploop.io \
-  -e API_KEY=$EXPLOOP_API_KEY \
+  -e API_URL=https://api.openctem.io \
+  -e API_KEY=$OPENCTEM_API_KEY \
   -e AGENT_ID=$AGENT_ID \
-  exploopio/agent:latest \
+  openctemio/agent:latest \
   -daemon -enable-commands -verbose
 ```
 
@@ -221,15 +221,15 @@ The `commands` table supports different command types for each agent type:
 
 | Scenario | Type | Image | Mode |
 |----------|------|-------|------|
-| GitHub Actions | Runner | `exploopio/agent:ci` | One-shot |
-| GitLab CI | Runner | `exploopio/agent:ci` | One-shot |
-| Kubernetes | Worker | `exploopio/agent:latest` | Daemon |
-| EC2 Instance | Worker | `exploopio/agent:latest` | Daemon |
-| Cloud Asset Discovery | Collector | `exploopio/agent:latest` | Daemon |
-| External Monitoring | Sensor | `exploopio/agent:latest` | Daemon |
+| GitHub Actions | Runner | `openctemio/agent:ci` | One-shot |
+| GitLab CI | Runner | `openctemio/agent:ci` | One-shot |
+| Kubernetes | Worker | `openctemio/agent:latest` | Daemon |
+| EC2 Instance | Worker | `openctemio/agent:latest` | Daemon |
+| Cloud Asset Discovery | Collector | `openctemio/agent:latest` | Daemon |
+| External Monitoring | Sensor | `openctemio/agent:latest` | Daemon |
 
 ## See Also
 
-- [Agent README](https://github.com/exploopio/agent)
+- [Agent README](https://github.com/openctemio/agent)
 - [Docker Images](./DOCKER_IMAGES.md)
 - [CI/CD Integration](./CICD.md)

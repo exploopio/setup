@@ -1,5 +1,5 @@
 # ==============================================================================
-# Nginx Configuration for Rediver Admin UI (admin.rediver.io)
+# Nginx Configuration for OpenCTEM Admin UI (admin.openctem.io)
 # ==============================================================================
 # Admin UI-specific nginx configuration with:
 # - SSL/TLS support

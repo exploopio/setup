@@ -26,8 +26,8 @@ The project uses GitHub Actions to automatically build and publish Docker images
 
 | Repository | Image | Workflow |
 |------------|-------|----------|
-| `ui` | `exploopio/ui` | `.github/workflows/docker-publish.yml` |
-| `api` | `exploopio/api` | `.github/workflows/docker-publish.yml` |
+| `ui` | `openctemio/ui` | `.github/workflows/docker-publish.yml` |
+| `api` | `openctemio/api` | `.github/workflows/docker-publish.yml` |
 
 ### Build Features
 
@@ -113,14 +113,14 @@ api/.github/workflows/docker-publish.yml
 ```
 Version: v0.1.1
 Environment: staging
-→ Tags: exploopio/ui:v0.1.1-staging, exploopio/ui:staging-latest
+→ Tags: openctemio/ui:v0.1.1-staging, openctemio/ui:staging-latest
 ```
 
 **Production build:**
 ```
 Version: v0.1.1
 Environment: production
-→ Tags: exploopio/ui:v0.1.1, exploopio/ui:latest
+→ Tags: openctemio/ui:v0.1.1, openctemio/ui:latest
 ```
 
 ---
@@ -160,7 +160,7 @@ The workflow automatically detects the environment from the tag:
 ### Repository Structure
 
 ```
-exploopio/
+openctemio/
 ├── api
 │   ├── v0.1.0-staging
 │   ├── v0.1.1-staging
@@ -182,16 +182,16 @@ exploopio/
 
 ```bash
 # Staging
-docker pull exploopio/ui:v0.1.1-staging
-docker pull exploopio/api:v0.1.1-staging
+docker pull openctemio/ui:v0.1.1-staging
+docker pull openctemio/api:v0.1.1-staging
 
 # Production
-docker pull exploopio/ui:v0.1.1
-docker pull exploopio/api:v0.1.1
+docker pull openctemio/ui:v0.1.1
+docker pull openctemio/api:v0.1.1
 
 # Latest
-docker pull exploopio/ui:latest
-docker pull exploopio/api:latest
+docker pull openctemio/ui:latest
+docker pull openctemio/api:latest
 ```
 
 ---
@@ -209,7 +209,7 @@ You can configure build-time variables in GitHub:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_APP_URL` | Public app URL | `https://app.exploop.io` |
+| `NEXT_PUBLIC_APP_URL` | Public app URL | `https://app.openctem.io` |
 | `NEXT_PUBLIC_AUTH_PROVIDER` | Auth provider | `local` |
 
 ### Using with docker-compose
@@ -338,7 +338,7 @@ permissions:
 docker buildx build \
   --platform linux/amd64 \
   --target production \
-  -t exploopio/ui:local \
+  -t openctemio/ui:local \
   -f Dockerfile \
   .
 
@@ -346,7 +346,7 @@ docker buildx build \
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --target production \
-  -t exploopio/ui:local \
+  -t openctemio/ui:local \
   -f Dockerfile \
   .
 ```
@@ -355,7 +355,7 @@ docker buildx build \
 
 ```bash
 # Run the image
-docker run -p 3000:3000 exploopio/ui:local
+docker run -p 3000:3000 openctemio/ui:local
 
 # Check health
 curl http://localhost:3000/api/health
@@ -375,12 +375,12 @@ git tag v0.1.1-staging && git push origin v0.1.1-staging
 git tag v0.1.1 && git push origin v0.1.1
 
 # Pull latest staging
-docker pull exploopio/ui:staging-latest
-docker pull exploopio/api:staging-latest
+docker pull openctemio/ui:staging-latest
+docker pull openctemio/api:staging-latest
 
 # Pull specific version
-docker pull exploopio/ui:v0.1.1-staging
-docker pull exploopio/api:v0.1.1-staging
+docker pull openctemio/ui:v0.1.1-staging
+docker pull openctemio/api:v0.1.1-staging
 
 # Deploy staging
 VERSION=v0.1.1-staging make staging-pull && make staging-restart
@@ -388,7 +388,7 @@ VERSION=v0.1.1-staging make staging-pull && make staging-restart
 
 ### Useful Links
 
-- [Docker Hub -.exploopio](https://hub.docker.com/u.exploopio)
+- [Docker Hub -.openctemio](https://hub.docker.com/u.openctemio)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Docker Build Push Action](https://github.com/docker/build-push-action)
 

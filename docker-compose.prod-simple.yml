@@ -8,8 +8,8 @@
 #   - Cloudflare Tunnel
 #
 # Images are pulled from Docker Hub:
-#   - exploopio/api:<version>
-#   - exploopio/ui:<version>
+#   - openctemio/api:<version>
+#   - openctemio/ui:<version>
 #
 # Quick Start:
 #   1. Copy env files:
@@ -28,8 +28,8 @@
 #   Stop:       docker compose -f docker-compose.prod-simple.yml down
 #
 # Exposed Ports (for external reverse proxy):
-#   - UI:  ${UI_PORT:-3000}  -> Route: exploop.io
-#   - API: ${API_PORT:-8080} -> Route: api.exploop.io
+#   - UI:  ${UI_PORT:-3000}  -> Route: openctem.io
+#   - API: ${API_PORT:-8080} -> Route: api.openctem.io
 #
 # Services:
 #   - postgres:  PostgreSQL 17 database (internal only)
@@ -51,15 +51,15 @@ services:
     env_file:
       - .env.db.prod
     environment:
-      POSTGRES_USER: ${DB_USER:-exploop}
+      POSTGRES_USER: ${DB_USER:-openctem}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      POSTGRES_DB: ${DB_NAME:-exploop}
+      POSTGRES_DB: ${DB_NAME:-openctem}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-exploop} -d ${DB_NAME:-exploop}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-openctem} -d ${DB_NAME:-openctem}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -122,12 +122,12 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: exploopio/migrations:<version>
+  # Image from Docker Hub: openctemio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: exploopio/migrations:${MIGRATIONS_VERSION:-latest}
+    image: openctemio/migrations:${MIGRATIONS_VERSION:-latest}
     environment:
-      DATABASE_URL: postgres://${DB_USER:-exploop}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-exploop}?sslmode=${DB_SSLMODE:-require}
+      DATABASE_URL: postgres://${DB_USER:-openctem}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-openctem}?sslmode=${DB_SSLMODE:-require}
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
@@ -147,9 +147,9 @@ services:
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # API exposed on port 8080 for external reverse proxy (api.exploop.io)
+  # API exposed on port 8080 for external reverse proxy (api.openctem.io)
   api:
-    image: exploopio/api:${API_VERSION:-latest}
+    image: openctemio/api:${API_VERSION:-latest}
     restart: always
     env_file:
       - .env.db.prod
@@ -202,7 +202,7 @@ services:
   # ---------------------------------------------------------------------------
   # Port 3000 exposed for external reverse proxy
   ui:
-    image: exploopio/ui:${UI_VERSION:-latest}
+    image: openctemio/ui:${UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.ui.prod

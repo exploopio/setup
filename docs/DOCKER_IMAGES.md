@@ -1,34 +1,34 @@
 # Docker Images Architecture
 
-This document describes the Docker images used in the Rediver platform and how they work together.
+This document describes the Docker images used in the OpenCTEM platform and how they work together.
 
 ## Overview
 
-The Rediver platform uses 4 Docker images published to Docker Hub:
+The OpenCTEM platform uses 4 Docker images published to Docker Hub:
 
 | Image | Description | Repository |
 |-------|-------------|------------|
-| `exploopio/api` | Backend API (Go) | api |
-| `exploopio/ui` | Frontend UI (Next.js) | ui |
-| `exploopio/migrations` | Database migrations | api |
-| `exploopio/seed` | Database seed data | api |
-| `exploopio/agent` | Security scanning agent | agent |
+| `openctemio/api` | Backend API (Go) | api |
+| `openctemio/ui` | Frontend UI (Next.js) | ui |
+| `openctemio/migrations` | Database migrations | api |
+| `openctemio/seed` | Database seed data | api |
+| `openctemio/agent` | Security scanning agent | agent |
 
 ## Image Details
 
-### 1. API Image (`exploopio/api`)
+### 1. API Image (`openctemio/api`)
 
 The main backend API built with Go.
 
 ```bash
 # Pull latest
-docker pull exploopio/api:latest
+docker pull openctemio/api:latest
 
 # Pull staging
-docker pull exploopio/api:staging-latest
+docker pull openctemio/api:staging-latest
 
 # Pull specific version
-docker pull exploopio/api:v0.1.0
+docker pull openctemio/api:v0.1.0
 ```
 
 **Tags:**
@@ -36,55 +36,55 @@ docker pull exploopio/api:v0.1.0
 - `staging-latest` - Latest staging build
 - `v0.1.0` - Specific version
 
-### 2. UI Image (`exploopio/ui`)
+### 2. UI Image (`openctemio/ui`)
 
 The frontend application built with Next.js.
 
 ```bash
-docker pull exploopio/ui:latest
-docker pull exploopio/ui:staging-latest
+docker pull openctemio/ui:latest
+docker pull openctemio/ui:staging-latest
 ```
 
-### 3. Migrations Image (`exploopio/migrations`)
+### 3. Migrations Image (`openctemio/migrations`)
 
 Contains database migration files and the migrate tool.
 
 ```bash
-docker pull exploopio/migrations:latest
-docker pull exploopio/migrations:staging-latest
+docker pull openctemio/migrations:latest
+docker pull openctemio/migrations:staging-latest
 ```
 
 **Usage:**
 ```bash
 # Apply all migrations
 docker run --rm \
-  exploopio/migrations:staging-latest \
+  openctemio/migrations:staging-latest \
   -path=/migrations \
   -database "postgres://user:pass@host:5432/db?sslmode=disable" \
   up
 
 # Rollback last migration
 docker run --rm \
-  exploopio/migrations:staging-latest \
+  openctemio/migrations:staging-latest \
   -path=/migrations \
   -database "postgres://user:pass@host:5432/db?sslmode=disable" \
   down 1
 
 # Show current version
 docker run --rm \
-  exploopio/migrations:staging-latest \
+  openctemio/migrations:staging-latest \
   -path=/migrations \
   -database "postgres://user:pass@host:5432/db?sslmode=disable" \
   version
 ```
 
-### 4. Seed Image (`exploopio/seed`)
+### 4. Seed Image (`openctemio/seed`)
 
 Contains SQL seed files for initializing database data.
 
 ```bash
-docker pull exploopio/seed:latest
-docker pull exploopio/seed:staging-latest
+docker pull openctemio/seed:latest
+docker pull openctemio/seed:staging-latest
 ```
 
 **Available seed files:**
@@ -94,34 +94,34 @@ docker pull exploopio/seed:staging-latest
 **Usage:**
 ```bash
 # List available seed files
-docker run --rm exploopio/seed:staging-latest ls -la /seed/
+docker run --rm openctemio/seed:staging-latest ls -la /seed/
 
 # Run specific seed file
 docker run --rm \
   -e PGHOST=postgres \
-  -e PGUSER.exploop \
+  -e PGUSER=openctem \
   -e PGPASSWORD=secret \
-  -e PGDATABASE.exploop \
-  exploopio/seed:staging-latest \
+  -e PGDATABASE=openctem \
+  openctemio/seed:staging-latest \
   psql -f /seed/seed_required.sql
 ```
 
-### 5. Agent Image (`exploopio/agent`)
+### 5. Agent Image (`openctemio/agent`)
 
 Security scanning agent for CI/CD integration and continuous monitoring.
 
 ```bash
-docker pull exploopio/agent:latest   # Full (semgrep + gitleaks + trivy)
-docker pull exploopio/agent:slim     # Minimal (no tools)
-docker pull exploopio/agent:ci       # CI optimized (preloaded Trivy DB)
+docker pull openctemio/agent:latest   # Full (semgrep + gitleaks + trivy)
+docker pull openctemio/agent:slim     # Minimal (no tools)
+docker pull openctemio/agent:ci       # CI optimized (preloaded Trivy DB)
 ```
 
 **Component Types:**
 | Type | Use Case | Mode | Recommended Image |
 |------|----------|------|-------------------|
-| `runner` | CI/CD pipelines | One-shot | `exploopio/agent:ci` |
-| `worker` | Production scanning | Daemon | `exploopio/agent:latest` |
-| `collector` | Infrastructure inventory | Daemon | `exploopio/agent:latest` |
+| `runner` | CI/CD pipelines | One-shot | `openctemio/agent:ci` |
+| `worker` | Production scanning | Daemon | `openctemio/agent:latest` |
+| `collector` | Infrastructure inventory | Daemon | `openctemio/agent:latest` |
 
 **Image Variants:**
 | Variant | Description | Use Case |
@@ -135,35 +135,35 @@ docker pull exploopio/agent:ci       # CI optimized (preloaded Trivy DB)
 # Runner: CI/CD one-shot scan
 docker run --rm \
   -v "$(pwd)":/code:ro \
-  -e API_URL=https://api.exploop.io \
+  -e API_URL=https://api.openctem.io \
   -e API_KEY=your-api-key \
-  exploopio/agent:ci \
+  openctemio/agent:ci \
   -tools semgrep,gitleaks,trivy-fs -target /code -push
 
 # Worker: Server-controlled daemon
 docker run -d \
-  --name.exploop-worker \
+  --name openctem-worker \
   --restart unless-stopped \
-  -e API_URL=https://api.exploop.io \
+  -e API_URL=https://api.openctem.io \
   -e API_KEY=your-api-key \
   -e WORKER_ID=your-worker-id \
-  exploopio/agent:latest \
+  openctemio/agent:latest \
   -daemon -enable-commands -verbose
 
 # Collector: Infrastructure scanning
 docker run -d \
-  --name.exploop-collector \
+  --name openctem-collector \
   --restart unless-stopped \
-  -e API_URL=https://api.exploop.io \
+  -e API_URL=https://api.openctem.io \
   -e API_KEY=your-api-key \
   -e WORKER_ID=your-collector-id \
   -e AWS_ACCESS_KEY_ID=your-access-key \
   -e AWS_SECRET_ACCESS_KEY=your-secret-key \
-  exploopio/agent:latest \
+  openctemio/agent:latest \
   -daemon -enable-commands -verbose
 ```
 
-See [Agent README](https://github.com/exploopio/agent) and [Worker Architecture](./WORKER_ARCHITECTURE.md) for full documentation.
+See [Agent README](https://github.com/openctemio/agent) and [Worker Architecture](./WORKER_ARCHITECTURE.md) for full documentation.
 
 ## Version Configuration
 
@@ -232,13 +232,13 @@ If you need to build images locally for development:
 cd api
 
 # Build API image
-docker build -t exploopio/api:local -f Dockerfile --target production .
+docker build -t openctemio/api:local -f Dockerfile --target production .
 
 # Build migrations image
-docker build -t exploopio/migrations:local -f Dockerfile.migrations .
+docker build -t openctemio/migrations:local -f Dockerfile.migrations .
 
 # Build seed image
-docker build -t exploopio/seed:local -f Dockerfile.seed .
+docker build -t openctemio/seed:local -f Dockerfile.seed .
 ```
 
 ## CI/CD Pipeline
@@ -290,5 +290,5 @@ docker compose -f docker-compose.staging.yml pull
 
 Or check if the image exists on Docker Hub:
 ```bash
-docker manifest inspect exploopio/api:staging-latest
+docker manifest inspect openctemio/api:staging-latest
 ```

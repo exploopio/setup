@@ -1,5 +1,5 @@
 # =============================================================================
-# Rediver Platform - Maintenance & Setup
+# OpenCTEM Platform - Maintenance & Setup
 # =============================================================================
 #
 # Quick Start (Staging):
@@ -194,7 +194,7 @@ migrate-prod: ## Run production database migrations manually
 	docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) up migrate
 
 db-shell-staging: ## Connect to Staging DB shell
-	docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec postgres psql -U rediver -d rediver
+	docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec postgres psql -U openctem -d openctem
 
 redis-shell-staging: ## Connect to Staging Redis shell
 	docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec redis redis-cli
@@ -224,11 +224,11 @@ assign-plan-staging: ## Assign plan to tenant (staging). Use tenant=<uuid> plan=
 		exit 1; \
 	fi
 	@echo "Assigning $(plan) plan to tenant $(tenant)..."
-	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE slug = '$(plan)'), updated_at = NOW() WHERE id = '$(tenant)';"
 	@echo ""
 	@echo "Verifying assignment..."
-	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id WHERE t.id = '$(tenant)';"
 
 assign-plan-prod: ## Assign plan to tenant (production). Use tenant=<uuid> plan=<slug>
@@ -247,25 +247,25 @@ assign-plan-prod: ## Assign plan to tenant (production). Use tenant=<uuid> plan=
 		exit 1; \
 	fi
 	@echo "Assigning $(plan) plan to tenant $(tenant)..."
-	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE slug = '$(plan)'), updated_at = NOW() WHERE id = '$(tenant)';"
 	@echo ""
 	@echo "Verifying assignment..."
-	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id WHERE t.id = '$(tenant)';"
 
 list-tenants-staging: ## List all tenants with their plans (staging)
-	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id ORDER BY t.name;"
 
 list-tenants-prod: ## List all tenants with their plans (production)
-	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT t.id, t.name, t.slug, p.name as plan_name, p.slug as plan_slug FROM tenants t JOIN plans p ON t.plan_id = p.id ORDER BY t.name;"
 
 list-plans-staging: ## List all available plans (staging)
-	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(STAGING_COMPOSE) $(STAGING_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT id, name, slug, price_monthly FROM plans ORDER BY price_monthly;"
 
 list-plans-prod: ## List all available plans (production)
-	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U rediver -d rediver -c \
+	@docker compose -f $(PROD_COMPOSE) $(PROD_ENV_FILES) exec -T postgres psql -U openctem -d openctem -c \
 		"SELECT id, name, slug, price_monthly FROM plans ORDER BY price_monthly;"
