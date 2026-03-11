@@ -1,0 +1,24 @@
+# =============================================================================
+# OpenCTEM Database Backup Cron Schedule
+# =============================================================================
+# Install: crontab setup/backup/crontab
+# Or add to existing: crontab -l | cat - setup/backup/crontab | crontab -
+#
+# Environment variables should be set in /etc/openctem/backup.env
+#
+# Off-site backup: set OFFSITE_ENABLED=true in backup.env along with
+# OFFSITE_PROVIDER, OFFSITE_BUCKET, etc. See backup.sh header for details.
+# =============================================================================
+
+# Load environment
+SHELL=/bin/bash
+BASH_ENV=/etc/openctem/backup.env
+
+# Daily full backup at 2:00 AM UTC
+0 2 * * * /opt/openctem/setup/backup/backup.sh --type full >> /var/log/openctem/backup.log 2>&1
+
+# Schema-only backup at 6:00 AM and 6:00 PM UTC (lightweight)
+0 6,18 * * * /opt/openctem/setup/backup/backup.sh --type schema >> /var/log/openctem/backup.log 2>&1
+
+# WAL archive cleanup daily at 3:00 AM UTC
+0 3 * * * /opt/openctem/setup/backup/wal-archive.sh setup >> /var/log/openctem/wal-archive.log 2>&1
