@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openctem.fullname" . }}-api
+  labels:
+    {{- include "openctem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "openctem.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "openctem.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openctem.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z {{ include "openctem.fullname" . }}-postgres 5432; do echo waiting for postgres; sleep 2; done']
+        - name: migrate
+          image: "{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          command:
+            - migrate
+            - -path=/migrations
+            - -database
+            - {{ include "openctem.databaseURL" . }}
+            - up
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.envFromSecret }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.port }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.api.service.grpcPort }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.api.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: DB_HOST
+              value: {{ include "openctem.fullname" . }}-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: REDIS_HOST
+              value: {{ include "openctem.fullname" . }}-redis
+            - name: REDIS_PORT
+              value: "6379"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.envFromSecret }}
+          readinessProbe:
+            {{- toYaml .Values.api.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.api.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi

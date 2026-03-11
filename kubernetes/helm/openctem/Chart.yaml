@@ -1,0 +1,14 @@
+apiVersion: v2
+name: openctem
+description: OpenCTEM - Continuous Threat Exposure Management Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ctem
+  - security
+  - vulnerability-management
+  - threat-exposure
+home: https://github.com/openctemio/openctem
+maintainers:
+  - name: OpenCTEM Team

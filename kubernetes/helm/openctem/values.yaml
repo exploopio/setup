@@ -1,0 +1,182 @@
+# OpenCTEM Helm Chart Values
+
+# -- Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# -- API Service
+api:
+  replicaCount: 2
+  image:
+    repository: openctemio/api
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+    grpcPort: 9090
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  env:
+    APP_ENV: production
+    LOG_LEVEL: info
+    LOG_FORMAT: json
+    SERVER_PORT: "8080"
+    GRPC_PORT: "9090"
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_RPS: "100"
+    RATE_LIMIT_BURST: "200"
+    AUTH_PROVIDER: local
+    AUTH_REQUIRE_EMAIL_VERIFICATION: "false"
+    AUTH_ALLOW_REGISTRATION: "true"
+  # -- Sensitive env vars from secrets
+  envFromSecret: openctem-api-secrets
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 30
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# -- UI Service
+ui:
+  replicaCount: 2
+  image:
+    repository: openctemio/ui
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  env:
+    NEXT_PUBLIC_API_URL: ""  # Set via ingress
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 30
+
+# -- PostgreSQL
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "17-alpine"
+  storage:
+    size: 50Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  auth:
+    existingSecret: openctem-db-secrets
+    database: openctem
+    username: openctem
+
+# -- Redis
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  storage:
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  auth:
+    existingSecret: openctem-redis-secrets
+
+# -- Ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: openctem.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: ui
+        - path: /api
+          pathType: Prefix
+          service: api
+        - path: /metrics
+          pathType: Prefix
+          service: api
+  tls:
+    - secretName: openctem-tls
+      hosts:
+        - openctem.example.com
+
+# -- Migrations
+migrations:
+  image:
+    repository: migrate/migrate
+    tag: "v4.17.0"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# -- Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# -- Network Policy
+networkPolicy:
+  enabled: false

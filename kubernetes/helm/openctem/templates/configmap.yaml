@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openctem.fullname" . }}-config
+  labels:
+    {{- include "openctem.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.api.env.APP_ENV | default "production" | quote }}
+  LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | default "info" | quote }}
+  LOG_FORMAT: {{ .Values.api.env.LOG_FORMAT | default "json" | quote }}
+  SERVER_PORT: {{ .Values.api.env.SERVER_PORT | default "8080" | quote }}
+  GRPC_PORT: {{ .Values.api.env.GRPC_PORT | default "9090" | quote }}
+  RATE_LIMIT_ENABLED: {{ .Values.api.env.RATE_LIMIT_ENABLED | default "true" | quote }}
+  RATE_LIMIT_RPS: {{ .Values.api.env.RATE_LIMIT_RPS | default "100" | quote }}
+  RATE_LIMIT_BURST: {{ .Values.api.env.RATE_LIMIT_BURST | default "200" | quote }}
+  AUTH_PROVIDER: {{ .Values.api.env.AUTH_PROVIDER | default "local" | quote }}
+  DB_HOST: {{ include "openctem.fullname" . }}-postgres
+  DB_PORT: "5432"
+  DB_NAME: {{ .Values.postgres.auth.database | quote }}
+  REDIS_HOST: {{ include "openctem.fullname" . }}-redis
+  REDIS_PORT: "6379"

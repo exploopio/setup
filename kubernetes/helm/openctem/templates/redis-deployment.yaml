@@ -1,0 +1,81 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "openctem.fullname" . }}-redis
+  labels:
+    {{- include "openctem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "openctem.fullname" . }}-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "openctem.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "openctem.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.redis.storage.storageClass }}
+        storageClassName: {{ .Values.redis.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openctem.fullname" . }}-redis
+  labels:
+    {{- include "openctem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "openctem.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+{{- end }}
