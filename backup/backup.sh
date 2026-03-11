@@ -190,6 +190,26 @@ MONTHLY_COUNT=$(find "$MONTHLY_DIR" -name "openctem_*" -not -name "*.sha256" | w
 log "Backup inventory: daily=${DAILY_COUNT}, weekly=${WEEKLY_COUNT}, monthly=${MONTHLY_COUNT}"
 
 # --- Off-site upload ---
+retry() {
+    local max_attempts="${1:-3}"
+    local delay="${2:-5}"
+    shift 2
+    local attempt=1
+    while [[ $attempt -le $max_attempts ]]; do
+        if "$@"; then
+            return 0
+        fi
+        log "Attempt ${attempt}/${max_attempts} failed: $*"
+        if [[ $attempt -lt $max_attempts ]]; then
+            log "Retrying in ${delay}s..."
+            sleep "$delay"
+        fi
+        ((attempt++))
+    done
+    log_error "All ${max_attempts} attempts failed: $*"
+    return 1
+}
+
 offsite_upload() {
     local file="$1"
     local filename
@@ -203,13 +223,13 @@ offsite_upload() {
             if [[ -n "${S3_ENDPOINT:-}" ]]; then
                 s3_opts+=(--endpoint-url "$S3_ENDPOINT")
             fi
-            aws s3 cp "${s3_opts[@]}" "$file" "s3://${OFFSITE_BUCKET}/${remote_path}" --quiet
+            retry 3 5 aws s3 cp "${s3_opts[@]}" "$file" "s3://${OFFSITE_BUCKET}/${remote_path}" --quiet
             ;;
         gcs)
-            gsutil -q cp "$file" "gs://${OFFSITE_BUCKET}/${remote_path}"
+            retry 3 5 gsutil -q cp "$file" "gs://${OFFSITE_BUCKET}/${remote_path}"
             ;;
         azure)
-            az storage blob upload \
+            retry 3 5 az storage blob upload \
                 --account-name "${AZURE_STORAGE_ACCOUNT}" \
                 --account-key "${AZURE_STORAGE_KEY}" \
                 --container-name "${OFFSITE_BUCKET}" \
@@ -273,6 +293,56 @@ if [[ "$OFFSITE_ENABLED" == "true" ]]; then
     if [[ -z "$OFFSITE_BUCKET" ]]; then
         log_error "OFFSITE_BUCKET is required when OFFSITE_ENABLED=true"
     else
+        # Pre-flight: check cloud CLI is installed
+        case "$OFFSITE_PROVIDER" in
+            s3)
+                if ! command -v aws &>/dev/null; then
+                    log_error "aws CLI not found. Install awscli to use S3 offsite backups."
+                    exit 1
+                fi
+                ;;
+            gcs)
+                if ! command -v gsutil &>/dev/null; then
+                    log_error "gsutil not found. Install google-cloud-sdk to use GCS offsite backups."
+                    exit 1
+                fi
+                ;;
+            azure)
+                if ! command -v az &>/dev/null; then
+                    log_error "az CLI not found. Install azure-cli to use Azure offsite backups."
+                    exit 1
+                fi
+                ;;
+        esac
+
+        # Pre-flight: validate cloud credentials
+        log "Validating ${OFFSITE_PROVIDER} credentials..."
+        case "$OFFSITE_PROVIDER" in
+            s3)
+                s3_preflight_opts=()
+                if [[ -n "${S3_ENDPOINT:-}" ]]; then
+                    s3_preflight_opts+=(--endpoint-url "$S3_ENDPOINT")
+                fi
+                if ! aws sts get-caller-identity "${s3_preflight_opts[@]}" &>/dev/null; then
+                    log_error "AWS credential validation failed. Check AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+                    exit 1
+                fi
+                ;;
+            gcs)
+                if ! gsutil ls "gs://${OFFSITE_BUCKET}" &>/dev/null; then
+                    log_error "GCS credential validation failed. Check GOOGLE_APPLICATION_CREDENTIALS and bucket access."
+                    exit 1
+                fi
+                ;;
+            azure)
+                if ! az account show &>/dev/null; then
+                    log_error "Azure credential validation failed. Check AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY."
+                    exit 1
+                fi
+                ;;
+        esac
+        log "Credentials validated successfully"
+
         log "Uploading backup to ${OFFSITE_PROVIDER}://${OFFSITE_BUCKET}/${OFFSITE_PREFIX}/"
 
         # Upload backup + checksum to daily tier
