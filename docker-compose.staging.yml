@@ -3,7 +3,8 @@
 # =============================================================================
 # Complete staging setup with API, UI, database, and automatic migrations.
 #
-# Images are pulled from Docker Hub: openctemio/api, openctemio/ui, openctemio/admin-ui
+# Images are pulled from configured registry (default: GHCR).
+# Set IMAGE_REGISTRY=openctemio to use Docker Hub mirror instead.
 #
 # Quick Start:
 #   1. Copy env files:
@@ -17,7 +18,10 @@
 #      docker compose -f docker-compose.staging.yml up -d
 #
 # With specific version:
-#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 ADMIN_UI_VERSION=v0.2.0 docker compose -f docker-compose.staging.yml up -d
+#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 docker compose -f docker-compose.staging.yml up -d
+#
+# With Admin UI (optional, requires admin-ui image):
+#   docker compose -f docker-compose.staging.yml --profile admin up -d
 #
 # With test data:
 #   docker compose -f docker-compose.staging.yml --profile seed up -d
@@ -43,7 +47,7 @@
 #   - seed:      Seeds test data (--profile seed)
 #   - api:       Backend API (internal only)
 #   - ui:        Frontend UI (port 3000, or via nginx with --profile ssl)
-#   - admin-ui:  Admin UI (port 3001, or via nginx with --profile ssl)
+#   - admin-ui:  Admin UI (--profile admin, port 3001, or via nginx with --profile ssl)
 #
 # Security Notes:
 #   - Database and Redis are NOT exposed by default
@@ -89,8 +93,6 @@ services:
       api:
         condition: service_healthy
       ui:
-        condition: service_healthy
-      admin-ui:
         condition: service_healthy
     networks:
       - app-network
@@ -216,10 +218,9 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: openctemio/migrations:${MIGRATIONS_VERSION:-staging-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/migrations:${MIGRATIONS_VERSION:-staging-latest}
     environment:
       DATABASE_URL: postgres://${DB_USER:-openctem}:${DB_PASSWORD:-secret}@postgres:5432/${DB_NAME:-openctem}?sslmode=disable
     entrypoint: [ "/bin/sh", "-c" ]
@@ -239,7 +240,6 @@ services:
   # ---------------------------------------------------------------------------
   # Database Seeding Service (Optional - use with --profile seed)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/seed:<version>
   # Seed files are bundled in the image, no local files needed.
   #
   # Available seed files:
@@ -249,7 +249,7 @@ services:
   # Usage:
   #   --profile seed           - Run seed_required + seed_comprehensive
   seed:
-    image: openctemio/seed:${SEED_VERSION:-staging-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/seed:${SEED_VERSION:-staging-latest}
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -282,9 +282,8 @@ services:
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/api:<version>
   api:
-    image: openctemio/api:${API_VERSION:-staging-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/api:${API_VERSION:-staging-latest}
     restart: unless-stopped
     env_file:
       - .env.db.staging
@@ -328,10 +327,9 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   ui:
-    image: openctemio/ui:${UI_VERSION:-staging-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/ui:${UI_VERSION:-staging-latest}
     restart: unless-stopped
     env_file:
       - .env.ui.staging
@@ -365,10 +363,10 @@ services:
   # ---------------------------------------------------------------------------
   # Admin UI (Next.js) - Platform Administration Console
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/admin-ui:<version>
+  # Optional: Use --profile admin to enable. Requires admin-ui image to exist.
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   admin-ui:
-    image: openctemio/admin-ui:${ADMIN_UI_VERSION:-staging-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/admin-ui:${ADMIN_UI_VERSION:-staging-latest}
     restart: unless-stopped
     env_file:
       - .env.admin-ui.staging
@@ -398,6 +396,8 @@ services:
       options:
         max-size: "100m"
         max-file: "3"
+    profiles:
+      - admin
 
 # =============================================================================
 # Volumes

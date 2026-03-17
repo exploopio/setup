@@ -4,199 +4,148 @@ This document describes the Docker images used in the OpenCTEM platform and how 
 
 ## Overview
 
-The OpenCTEM platform uses 4 Docker images published to Docker Hub:
+The OpenCTEM platform publishes Docker images to **two registries**:
 
-| Image | Description | Repository |
-|-------|-------------|------------|
-| `openctemio/api` | Backend API (Go) | api |
-| `openctemio/ui` | Frontend UI (Next.js) | ui |
-| `openctemio/migrations` | Database migrations | api |
-| `openctemio/seed` | Database seed data | api |
-| `openctemio/agent` | Security scanning agent | agent |
+| Registry | Domain | Availability |
+|----------|--------|-------------|
+| **GitHub Container Registry (GHCR)** | `ghcr.io/openctemio/*` | Always available (default) |
+| **Docker Hub** | `openctemio/*` | Optional mirror (requires secrets) |
+
+**GHCR is the primary registry** — images are always pushed there via `GITHUB_TOKEN`. Docker Hub is an optional mirror that only works if `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are configured in the GitHub repo.
+
+### Images
+
+| Image | Description | Source Repo | Architectures |
+|-------|-------------|------------|----------------|
+| `api` | Backend API (Go) | api | amd64, arm64 |
+| `ui` | Frontend UI (Next.js) | ui | amd64, arm64 |
+| `migrations` | Database migrations | api | amd64, arm64 |
+| `seed` | Database seed data | api | amd64, arm64 |
+| `admin-cli` | Admin CLI tool | api | amd64, arm64 |
+| `agent` | Security scanning agent (5 variants) | agent | amd64, arm64 |
+
+> **Note:** `admin-ui` is an optional component (use `--profile admin` in compose). It requires a separate admin-ui image to be available.
+
+## Registry Configuration
+
+The `IMAGE_REGISTRY` variable controls which registry to pull from:
+
+```bash
+# Default: GitHub Container Registry (always available)
+IMAGE_REGISTRY=ghcr.io/openctemio
+
+# Alternative: Docker Hub (if images are mirrored)
+IMAGE_REGISTRY=openctemio
+```
+
+Set this in `.env.versions.prod` or `.env.versions.staging`.
+
+## Pulling Images
+
+```bash
+# From GHCR (default, always available)
+docker pull ghcr.io/openctemio/api:latest
+docker pull ghcr.io/openctemio/api:v0.2.0
+docker pull ghcr.io/openctemio/api:staging-latest
+
+# From Docker Hub (if mirrored)
+docker pull openctemio/api:latest
+docker pull openctemio/api:v0.2.0
+```
 
 ## Image Details
 
-### 1. API Image (`openctemio/api`)
+### API Image (`api`)
 
 The main backend API built with Go.
-
-```bash
-# Pull latest
-docker pull openctemio/api:latest
-
-# Pull staging
-docker pull openctemio/api:staging-latest
-
-# Pull specific version
-docker pull openctemio/api:v0.1.0
-```
 
 **Tags:**
 - `latest` - Latest production release
 - `staging-latest` - Latest staging build
 - `v0.1.0` - Specific version
 
-### 2. UI Image (`openctemio/ui`)
+### UI Image (`ui`)
 
 The frontend application built with Next.js.
 
-```bash
-docker pull openctemio/ui:latest
-docker pull openctemio/ui:staging-latest
-```
-
-### 3. Migrations Image (`openctemio/migrations`)
+### Migrations Image (`migrations`)
 
 Contains database migration files and the migrate tool.
 
 ```bash
-docker pull openctemio/migrations:latest
-docker pull openctemio/migrations:staging-latest
-```
-
-**Usage:**
-```bash
 # Apply all migrations
 docker run --rm \
-  openctemio/migrations:staging-latest \
+  ghcr.io/openctemio/migrations:latest \
   -path=/migrations \
   -database "postgres://user:pass@host:5432/db?sslmode=disable" \
   up
 
 # Rollback last migration
 docker run --rm \
-  openctemio/migrations:staging-latest \
+  ghcr.io/openctemio/migrations:latest \
   -path=/migrations \
   -database "postgres://user:pass@host:5432/db?sslmode=disable" \
   down 1
-
-# Show current version
-docker run --rm \
-  openctemio/migrations:staging-latest \
-  -path=/migrations \
-  -database "postgres://user:pass@host:5432/db?sslmode=disable" \
-  version
 ```
 
-### 4. Seed Image (`openctemio/seed`)
+### Seed Image (`seed`)
 
 Contains SQL seed files for initializing database data.
-
-```bash
-docker pull openctemio/seed:latest
-docker pull openctemio/seed:staging-latest
-```
 
 **Available seed files:**
 - `seed_required.sql` - Required data (roles, permissions, default settings)
 - `seed_comprehensive.sql` - Comprehensive test data (users, teams, assets, findings)
 
-**Usage:**
-```bash
-# List available seed files
-docker run --rm openctemio/seed:staging-latest ls -la /seed/
+### Agent Image (`agent`)
 
-# Run specific seed file
-docker run --rm \
-  -e PGHOST=postgres \
-  -e PGUSER=openctem \
-  -e PGPASSWORD=secret \
-  -e PGDATABASE=openctem \
-  openctemio/seed:staging-latest \
-  psql -f /seed/seed_required.sql
-```
+Security scanning agent with multiple variants:
 
-### 5. Agent Image (`openctemio/agent`)
-
-Security scanning agent for CI/CD integration and continuous monitoring.
-
-```bash
-docker pull openctemio/agent:latest   # Full (semgrep + gitleaks + trivy)
-docker pull openctemio/agent:slim     # Minimal (no tools)
-docker pull openctemio/agent:ci       # CI optimized (preloaded Trivy DB)
-```
-
-**Component Types:**
-| Type | Use Case | Mode | Recommended Image |
-|------|----------|------|-------------------|
-| `runner` | CI/CD pipelines | One-shot | `openctemio/agent:ci` |
-| `worker` | Production scanning | Daemon | `openctemio/agent:latest` |
-| `collector` | Infrastructure inventory | Daemon | `openctemio/agent:latest` |
-
-**Image Variants:**
-| Variant | Description | Use Case |
-|---------|-------------|----------|
-| `latest` | All tools included | Production scanning |
-| `slim` | Agent only, no tools | Custom tool setup |
-| `ci` | Full + preloaded Trivy DB | CI/CD (faster startup) |
-
-**Usage:**
-```bash
-# Runner: CI/CD one-shot scan
-docker run --rm \
-  -v "$(pwd)":/code:ro \
-  -e API_URL=https://api.openctem.io \
-  -e API_KEY=your-api-key \
-  openctemio/agent:ci \
-  -tools semgrep,gitleaks,trivy-fs -target /code -push
-
-# Worker: Server-controlled daemon
-docker run -d \
-  --name openctem-worker \
-  --restart unless-stopped \
-  -e API_URL=https://api.openctem.io \
-  -e API_KEY=your-api-key \
-  -e WORKER_ID=your-worker-id \
-  openctemio/agent:latest \
-  -daemon -enable-commands -verbose
-
-# Collector: Infrastructure scanning
-docker run -d \
-  --name openctem-collector \
-  --restart unless-stopped \
-  -e API_URL=https://api.openctem.io \
-  -e API_KEY=your-api-key \
-  -e WORKER_ID=your-collector-id \
-  -e AWS_ACCESS_KEY_ID=your-access-key \
-  -e AWS_SECRET_ACCESS_KEY=your-secret-key \
-  openctemio/agent:latest \
-  -daemon -enable-commands -verbose
-```
-
-See [Agent README](https://github.com/openctemio/agent) and [Worker Architecture](./WORKER_ARCHITECTURE.md) for full documentation.
+| Variant | Tag Pattern | Description |
+|---------|------------|-------------|
+| `default` | `:v1.0.0-default`, `:latest-default` | Base agent |
+| `semgrep` | `:v1.0.0-semgrep`, `:latest-semgrep` | With Semgrep |
+| `trivy` | `:v1.0.0-trivy`, `:latest-trivy` | With Trivy |
+| `nuclei` | `:v1.0.0-nuclei`, `:latest-nuclei` | With Nuclei |
+| `gitleaks` | `:v1.0.0-gitleaks`, `:latest-gitleaks` | With Gitleaks |
 
 ## Version Configuration
 
 Versions are configured in `.env.versions.staging` or `.env.versions.prod`:
 
 ```bash
-# .env.versions.staging
-API_VERSION=staging-latest
-UI_VERSION=staging-latest
-MIGRATIONS_VERSION=staging-latest
-SEED_VERSION=staging-latest
+# .env.versions.prod
+IMAGE_REGISTRY=ghcr.io/openctemio
+API_VERSION=v0.2.0
+UI_VERSION=v0.2.0
+ADMIN_UI_VERSION=v0.2.0
+MIGRATIONS_VERSION=v0.2.0
 ```
 
 **Important:** Keep `MIGRATIONS_VERSION` and `SEED_VERSION` in sync with `API_VERSION` to ensure schema compatibility.
 
-## Makefile Commands
+## CI/CD Pipeline
 
-### Seeding Commands
+Images are automatically built and pushed when a version tag is created:
 
-```bash
-# Seed with required + comprehensive test data
-make staging-seed
+1. **Tag push** (`v*`) → Production build → Push to GHCR → Mirror to Docker Hub (if configured)
+2. **Tag push** (`v*-staging`) → Staging build → Push to GHCR → Mirror to Docker Hub (if configured)
+3. **Manual dispatch** → Can be triggered from GitHub Actions
+
+### Pipeline Flow
+
+```
+PREPARE → BUILD (amd64 + arm64 native) → MERGE (multi-arch manifest) → MIRROR to Docker Hub (optional)
 ```
 
-### Migration Commands
+Each repo has its own `docker-publish.yml` workflow:
+- `api` repo: builds `api`, `migrations`, `seed`, `admin-cli` (4 images)
+- `ui` repo: builds `ui` (1 image)
+- `agent` repo: builds `agent` x 5 variants (5 images)
 
-```bash
-# Run migrations
-make db-migrate-staging
+### Environment Detection
 
-# Open database shell
-make db-shell-staging
-```
+- Tag contains `-staging` → staging environment (`:v1.0.0-staging`, `:staging-latest`)
+- Tag without `-staging` → production environment (`:v1.0.0`, `:latest`)
 
 ## Docker Compose Profiles
 
@@ -211,9 +160,6 @@ docker compose -f docker-compose.staging.yml --profile seed up -d
 
 # With SSL/nginx
 docker compose -f docker-compose.staging.yml --profile ssl up -d
-
-# With SSL + test data
-docker compose -f docker-compose.staging.yml --profile ssl --profile seed up -d
 ```
 
 ### Available Profiles
@@ -224,54 +170,24 @@ docker compose -f docker-compose.staging.yml --profile ssl --profile seed up -d
 | `ssl` | Enable nginx reverse proxy with SSL |
 | `debug` | Expose database and Redis ports |
 
-## Building Images Locally
-
-If you need to build images locally for development:
-
-```bash
-cd api
-
-# Build API image
-docker build -t openctemio/api:local -f Dockerfile --target production .
-
-# Build migrations image
-docker build -t openctemio/migrations:local -f Dockerfile.migrations .
-
-# Build seed image
-docker build -t openctemio/seed:local -f Dockerfile.seed .
-```
-
-## CI/CD Pipeline
-
-Images are automatically built and pushed to Docker Hub when:
-
-1. **Tag push** (`v*`) - Triggers production build
-2. **Tag push** (`v*-staging`) - Triggers staging build
-3. **Manual dispatch** - Can be triggered from GitHub Actions
-
-See [CICD.md](./CICD.md) for detailed CI/CD documentation.
-
 ## Troubleshooting
+
+### Image not found
+
+GHCR images require authentication for private repos:
+```bash
+# Login to GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# Then pull
+docker compose -f docker-compose.staging.yml pull
+```
 
 ### Migration fails with "file does not exist"
 
 Ensure `MIGRATIONS_VERSION` matches `API_VERSION`:
 ```bash
-# Check current versions
 grep VERSION .env.versions.staging
-
-# Should match
-API_VERSION=staging-latest
-MIGRATIONS_VERSION=staging-latest
-```
-
-### Seed fails with "relation does not exist"
-
-Run migrations first:
-```bash
-make db-migrate-staging
-# Then seed
-make staging-seed
 ```
 
 ### Password contains special characters
@@ -279,16 +195,4 @@ make staging-seed
 Database passwords must be URL-safe (no `/`, `+`, `=`). Generate safe passwords:
 ```bash
 make generate-secrets
-```
-
-### Image not found
-
-Pull the latest images:
-```bash
-docker compose -f docker-compose.staging.yml pull
-```
-
-Or check if the image exists on Docker Hub:
-```bash
-docker manifest inspect openctemio/api:staging-latest
 ```

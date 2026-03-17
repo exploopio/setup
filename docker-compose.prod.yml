@@ -3,10 +3,14 @@
 # =============================================================================
 # Production deployment with Nginx reverse proxy, SSL/TLS, and security hardening.
 #
-# Images are pulled from Docker Hub:
-#   - openctemio/api:<version>
-#   - openctemio/ui:<version>
-#   - openctemio/admin-ui:<version>
+# Images are pulled from the configured registry (default: GHCR):
+#   - ${IMAGE_REGISTRY}/api:<version>
+#   - ${IMAGE_REGISTRY}/ui:<version>
+#   - ${IMAGE_REGISTRY}/admin-ui:<version>
+#
+# Registry options:
+#   - ghcr.io/openctemio  (default, always available)
+#   - openctemio           (Docker Hub mirror, if configured)
 #
 # Quick Start:
 #   1. Copy env files:
@@ -24,7 +28,10 @@
 #      docker compose -f docker-compose.prod.yml up -d
 #
 # With specific version:
-#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 ADMIN_UI_VERSION=v0.2.0 docker compose -f docker-compose.prod.yml up -d
+#   API_VERSION=v0.2.0 UI_VERSION=v0.2.0 docker compose -f docker-compose.prod.yml up -d
+#
+# With Admin UI (optional, requires admin-ui image):
+#   docker compose -f docker-compose.prod.yml --profile admin up -d
 #
 # Commands:
 #   Start:      docker compose -f docker-compose.prod.yml up -d
@@ -39,7 +46,7 @@
 #   - migrate:   Runs migrations (exits after completion)
 #   - api:       Backend API (internal only)
 #   - ui:        Frontend UI (internal only, via nginx)
-#   - admin-ui:  Admin UI (internal only, via nginx)
+#   - admin-ui:  Admin UI (--profile admin, internal only, via nginx)
 #
 # Security Notes:
 #   - Database and Redis are NOT exposed externally
@@ -86,8 +93,6 @@ services:
       api:
         condition: service_healthy
       ui:
-        condition: service_healthy
-      admin-ui:
         condition: service_healthy
     networks:
       - app-network
@@ -195,10 +200,9 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: openctemio/migrations:${MIGRATIONS_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/migrations:${MIGRATIONS_VERSION:-latest}
     environment:
       DATABASE_URL: postgres://${DB_USER:-openctem}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-openctem}?sslmode=${DB_SSLMODE:-require}
     entrypoint: [ "/bin/sh", "-c" ]
@@ -220,9 +224,8 @@ services:
   # ---------------------------------------------------------------------------
   # Backend API (Go)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/api:<version>
   api:
-    image: openctemio/api:${API_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/api:${API_VERSION:-latest}
     restart: always
     env_file:
       - .env.db.prod
@@ -274,11 +277,10 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend UI (Next.js)
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/ui:<version>
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: UI is internal only, accessed via nginx reverse proxy
   ui:
-    image: openctemio/ui:${UI_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/ui:${UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.ui.prod
@@ -315,11 +317,11 @@ services:
   # ---------------------------------------------------------------------------
   # Admin UI (Next.js) - Platform Administration Console
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/admin-ui:<version>
+  # Optional: Use --profile admin to enable. Requires admin-ui image to exist.
   # Note: NEXT_PUBLIC_* variables are baked into the image at build time
   # Note: Admin UI is internal only, accessed via nginx reverse proxy
   admin-ui:
-    image: openctemio/admin-ui:${ADMIN_UI_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/admin-ui:${ADMIN_UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.admin-ui.prod
@@ -352,6 +354,8 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
+    profiles:
+      - admin
 
 # =============================================================================
 # Volumes

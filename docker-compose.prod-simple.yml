@@ -7,9 +7,13 @@
 #   - Traefik, Caddy as external proxy
 #   - Cloudflare Tunnel
 #
-# Images are pulled from Docker Hub:
-#   - openctemio/api:<version>
-#   - openctemio/ui:<version>
+# Images are pulled from configured registry (default: GHCR):
+#   - ${IMAGE_REGISTRY}/api:<version>
+#   - ${IMAGE_REGISTRY}/ui:<version>
+#
+# Registry options:
+#   - ghcr.io/openctemio  (default, always available)
+#   - openctemio           (Docker Hub mirror, if configured)
 #
 # Quick Start:
 #   1. Copy env files:
@@ -122,10 +126,9 @@ services:
   # ---------------------------------------------------------------------------
   # Database Migration Service
   # ---------------------------------------------------------------------------
-  # Image from Docker Hub: openctemio/migrations:<version>
   # Migrations are bundled in the image, no local files needed.
   migrate:
-    image: openctemio/migrations:${MIGRATIONS_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/migrations:${MIGRATIONS_VERSION:-latest}
     environment:
       DATABASE_URL: postgres://${DB_USER:-openctem}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-openctem}?sslmode=${DB_SSLMODE:-require}
     entrypoint: [ "/bin/sh", "-c" ]
@@ -149,7 +152,7 @@ services:
   # ---------------------------------------------------------------------------
   # API exposed on port 8080 for external reverse proxy (api.openctem.io)
   api:
-    image: openctemio/api:${API_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/api:${API_VERSION:-latest}
     restart: always
     env_file:
       - .env.db.prod
@@ -202,7 +205,7 @@ services:
   # ---------------------------------------------------------------------------
   # Port 3000 exposed for external reverse proxy
   ui:
-    image: openctemio/ui:${UI_VERSION:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/openctemio}/ui:${UI_VERSION:-latest}
     restart: always
     env_file:
       - .env.ui.prod
