@@ -136,6 +136,8 @@ ingress:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    # Health check: use /health instead of default / (which returns 404 on API)
+    nginx.ingress.kubernetes.io/healthcheck-path: /health
   hosts:
     - host: openctem.example.com
       paths:
