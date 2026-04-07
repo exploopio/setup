@@ -153,11 +153,11 @@ ingress:
       hosts:
         - openctem.example.com
 
-# -- Migrations
+# -- Migrations (built from api/Dockerfile.migrations)
 migrations:
   image:
-    repository: migrate/migrate
-    tag: "v4.17.0"
+    repository: openctemio/migrations
+    tag: "latest"
   resources:
     requests:
       cpu: 100m
