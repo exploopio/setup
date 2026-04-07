@@ -1,0 +1,96 @@
+{{/*
+Bootstrap Admin Job - Creates the first admin user on initial deployment.
+
+Usage:
+  # Option 1: Via helm install/upgrade with values
+  helm install openctem ./openctem \
+    --set bootstrapAdmin.enabled=true \
+    --set bootstrapAdmin.email=admin@example.com
+
+  # Option 2: Run manually after install
+  kubectl create job bootstrap-admin --from=cronjob/openctem-bootstrap-admin -n openctem
+
+  # Option 3: kubectl exec into API pod
+  kubectl exec -it deploy/openctem-api -n openctem -- /app/bootstrap-admin -email=admin@example.com
+
+The job outputs the API key to logs:
+  kubectl logs job/openctem-bootstrap-admin -n openctem
+*/}}
+{{- if .Values.bootstrapAdmin.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "openctem.fullname" . }}-bootstrap-admin
+  labels:
+    {{- include "openctem.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bootstrap
+  annotations:
+    # Run after all other resources are created
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "openctem.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openctem.serviceAccountName" . }}
+
+      # Wait for database to be ready
+      initContainers:
+        - name: wait-for-db
+          image: postgres:17-alpine
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h {{ include "openctem.fullname" . }}-postgres -p 5432 -U $(DB_USER); do
+                echo "PostgreSQL not ready, retrying in 2s..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.envFromSecret }}
+
+      containers:
+        - name: bootstrap-admin
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          command: ["/app/bootstrap-admin"]
+          args:
+            - "-email={{ .Values.bootstrapAdmin.email }}"
+            - "-name={{ .Values.bootstrapAdmin.name | default "" }}"
+            - "-role={{ .Values.bootstrapAdmin.role | default "super_admin" }}"
+            {{- if .Values.bootstrapAdmin.force }}
+            - "-force"
+            {{- end }}
+          env:
+            - name: DB_HOST
+              value: {{ include "openctem.fullname" . }}-postgres
+            - name: DB_PORT
+              value: "5432"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.envFromSecret }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+{{- end }}

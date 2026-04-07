@@ -177,6 +177,16 @@ podDisruptionBudget:
   enabled: true
   minAvailable: 1
 
+# -- Bootstrap Admin (first-time setup)
+# Creates the initial admin user on first deployment.
+# The API key is printed to job logs: kubectl logs job/<release>-bootstrap-admin
+bootstrapAdmin:
+  enabled: false
+  email: ""           # Required: admin@example.com
+  name: ""            # Optional: defaults to email prefix
+  role: "super_admin" # super_admin | ops_admin | viewer
+  force: false        # Overwrite existing admin with same email
+
 # -- Network Policy
 networkPolicy:
   enabled: false
